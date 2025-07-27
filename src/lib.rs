@@ -2,6 +2,7 @@
 
 pub mod glbuffer;
 pub mod glshader;
+pub mod glmesh;
 
 #[cfg(test)]
 mod tests {
