@@ -1,0 +1,10 @@
+[package]
+name = "globject-rs"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+glcore-rs = "0.1.4"
+
+[dev-dependencies]
+glfw = "0.59.0"
