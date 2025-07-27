@@ -21,6 +21,18 @@ pub enum BufferTarget {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum BufferUsage {
+	StreamDraw = GL_STREAM_DRAW as isize,
+	StreamRead = GL_STREAM_READ as isize,
+	StreamCopy = GL_STREAM_COPY as isize,
+	StaticDraw = GL_STATIC_DRAW as isize,
+	StaticRead = GL_STATIC_READ as isize,
+	StaticCopy = GL_STATIC_COPY as isize,
+	DynamicDraw = GL_DYNAMIC_DRAW as isize,
+	DynamicRead = GL_DYNAMIC_READ as isize,
+	DynamicCopy = GL_DYNAMIC_COPY as isize,
+}
+#[derive(Debug, Clone, Copy)]
 pub enum MapAccess {
 	ReadOnly = GL_READ_ONLY as isize,
 	WriteOnly = GL_WRITE_ONLY as isize,
@@ -43,9 +55,12 @@ pub struct BufferMap<'a, 'b> {
 }
 
 impl<'a> Buffer<'a> {
-	pub fn new(glcore: &'a GLCore) -> Self {
+	pub fn new(glcore: &'a GLCore, target: BufferTarget, size: usize, usage: BufferUsage, data_ptr: *const c_void) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenBuffers(1, &mut name as *mut u32);
+		glcore.glBindBuffer(target as u32, name);
+		glcore.glBufferData(target as u32, size, data_ptr, usage as u32);
+		glcore.glBindBuffer(target as u32, 0);
 		Self {
 			glcore,
 			name,
