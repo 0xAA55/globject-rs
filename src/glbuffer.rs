@@ -3,6 +3,7 @@
 use glcore::*;
 use std::ffi::c_void;
 
+/// The OpenGL buffer binding targets
 #[derive(Debug, Clone, Copy)]
 pub enum BufferTarget {
 	ArrayBuffer = GL_ARRAY_BUFFER as isize,
@@ -21,6 +22,7 @@ pub enum BufferTarget {
 	UniformBuffer = GL_UNIFORM_BUFFER as isize,
 }
 
+/// The usage for the buffer
 #[derive(Debug, Clone, Copy)]
 pub enum BufferUsage {
 	StreamDraw = GL_STREAM_DRAW as isize,
@@ -33,6 +35,8 @@ pub enum BufferUsage {
 	DynamicRead = GL_DYNAMIC_READ as isize,
 	DynamicCopy = GL_DYNAMIC_COPY as isize,
 }
+
+/// The access flags for `glMapBuffers()`
 #[derive(Debug, Clone, Copy)]
 pub enum MapAccess {
 	ReadOnly = GL_READ_ONLY as isize,
@@ -40,16 +44,19 @@ pub enum MapAccess {
 	ReadWrite = GL_READ_WRITE as isize,
 }
 
+/// The OpenGL buffer
 pub struct Buffer<'a> {
 	glcore: &'a GLCore,
 	name: u32,
 }
 
+/// When to use a buffer, must bind the buffer first. The RAII system could help automatically unbind the buffer.
 pub struct BufferBind<'a, 'b> {
 	buffer: &'b Buffer<'a>,
 	target: BufferTarget,
 }
 
+/// When to modify the buffer or retrieve the data from the buffer, use map to update the buffer.
 pub struct BufferMap<'a, 'b> {
 	buffer: &'b Buffer<'a>,
 	target: BufferTarget,
@@ -57,6 +64,7 @@ pub struct BufferMap<'a, 'b> {
 }
 
 impl<'a> Buffer<'a> {
+	/// Create a new OpenGL buffer with the specified size and data. The data could be `NULL`, indicating no initialization to the buffer.
 	pub fn new(glcore: &'a GLCore, target: BufferTarget, size: usize, usage: BufferUsage, data_ptr: *const c_void) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenBuffers(1, &mut name as *mut u32);
@@ -69,16 +77,19 @@ impl<'a> Buffer<'a> {
 		}
 	}
 
+	/// Create a `BufferBind` to use the RAII system to manage the binding state.
 	pub fn bind<'b>(&'a self, target: BufferTarget) -> BufferBind<'a, 'b> {
 		BufferBind::new(&self, target)
 	}
 
+	/// Delete the OpenGL buffer on `drop()` called.
 	fn drop(&self) {
 		self.glcore.glDeleteBuffers(1, &self.name as *const u32);
 	}
 }
 
 impl<'a, 'b> BufferBind<'a, 'b> {
+	/// Bind the buffer to the target
 	fn new(buffer: &'b Buffer<'a>, target: BufferTarget) -> Self {
 		buffer.glcore.glBindBuffer(target as u32, buffer.name);
 		Self {
@@ -87,19 +98,24 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 		}
 	}
 
+	/// Unbind if dropped
 	fn drop(&self) {
 		self.buffer.glcore.glBindBuffer(self.target as u32, 0);
 	}
 
+	/// Create a `BufferMap` to use the RAII system to manage the mapping state.
 	pub fn map(&self, access: MapAccess) -> (BufferMap<'a, 'b>, *mut c_void) {
 		BufferMap::new(&self.buffer, self.target, access)
 	}
+
+	/// Create a `BufferMap` to use the RAII system to manage the mapping state, with partially mapped range.
 	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> (BufferMap<'a, 'b>, *mut c_void) {
 		BufferMap::new_ranged(&self.buffer, self.target, offset, length, access)
 	}
 }
 
 impl<'a, 'b> BufferMap<'a, 'b> {
+	/// Map to the buffer to modify or retrieve the data of the buffer
 	fn new(buffer: &'b Buffer<'a>, target: BufferTarget, access: MapAccess) -> (Self, *mut c_void) {
 		let address = buffer.glcore.glMapBuffer(target as u32, access as u32);
 		(Self {
@@ -109,6 +125,7 @@ impl<'a, 'b> BufferMap<'a, 'b> {
 		}, address)
 	}
 
+	/// Map to the buffer partially to modify or retrieve the data of the buffer
 	fn new_ranged(buffer: &'b Buffer<'a>, target: BufferTarget, offset: usize, length: usize, access: MapAccess) -> (Self, *mut c_void) {
 		let address = buffer.glcore.glMapBufferRange(target as u32, offset, length, access as u32);
 		(Self {
@@ -118,6 +135,7 @@ impl<'a, 'b> BufferMap<'a, 'b> {
 		}, address)
 	}
 
+	/// Unmap the buffer when dropped
 	fn drop(&self) {
 		self.buffer.glcore.glUnmapBuffer(self.target as u32);
 	}
