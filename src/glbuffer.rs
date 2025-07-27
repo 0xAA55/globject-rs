@@ -44,7 +44,7 @@ pub enum MapAccess {
 	ReadWrite = GL_READ_WRITE as isize,
 }
 
-/// The OpenGL buffer
+/// The OpenGL buffer object
 pub struct Buffer<'a> {
 	glcore: &'a GLCore,
 	name: u32,

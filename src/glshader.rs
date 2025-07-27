@@ -2,20 +2,32 @@
 
 use glcore::*;
 
+/// Error produced from the shader
 pub enum ShaderError {
+	/// Vertex Shader error
 	VSError(String),
+
+	/// Geometry Shader error
 	GSError(String),
+
+	/// Fragment Shader error
 	FSError(String),
-	LinakgeError(String),
+	
+	/// Compute Shader error
 	CSError(String),
+
+	/// Shader program linkage error
+	LinakgeError(String),
 }
 
+/// The OpenGL shader object
 pub struct Shader<'a> {
 	glcore: &'a GLCore,
 	program: u32,
 }
 
 impl<'a> Shader<'a> {
+	/// Compile a shader, returns the compiled shader object or the compiler info log
 	fn compile_shader(glcore: &'a GLCore, shader_type: u32, shader_source: &str) -> Result<u32, String> {
 		let shader = glcore.glCreateShader(shader_type);
 		let bytes: Vec<i8> = shader_source.bytes().map(|byte| -> i8 {byte as i8}).collect();
@@ -41,6 +53,7 @@ impl<'a> Shader<'a> {
 		}
 	}
 
+	/// Link a shader program, returns the compiled shader program object or the compiler/linker info log
 	fn link_program(glcore: &'a GLCore, program: u32)  -> Result<Self, ShaderError> {
 		glcore.glLinkProgram(program);
 		let mut linked: i32 = 0;
@@ -63,6 +76,7 @@ impl<'a> Shader<'a> {
 		}
 	}
 
+	/// Create a new traditional renderer shader program
 	pub fn new(glcore: &'a GLCore, vertex_shader: Option<&str>, geometry_shader: Option<&str>, fragment_shader: Option<&str>) -> Result<Self, ShaderError> {
 		let program = glcore.glCreateProgram();
 		if let Some(vertex_shader) = vertex_shader {
@@ -95,6 +109,7 @@ impl<'a> Shader<'a> {
 		Self::link_program(glcore, program)
 	}
 
+	/// Create a new compute shader program
 	pub fn new_compute(glcore: &'a GLCore, shader_source: &str) -> Result<Self, ShaderError> {
 		let program = glcore.glCreateProgram();
 		match Self::compile_shader(glcore, GL_COMPUTE_SHADER, shader_source) {
@@ -107,6 +122,7 @@ impl<'a> Shader<'a> {
 		Self::link_program(glcore, program)
 	}
 
+	/// Set to use the shader
 	pub fn use_(&self) {
 		self.glcore.glUseProgram(self.program)
 	}
