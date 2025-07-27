@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use glcore::*;
+use std::ffi::c_void;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BufferTarget {
@@ -52,6 +53,7 @@ pub struct BufferBind<'a, 'b> {
 pub struct BufferMap<'a, 'b> {
 	buffer: &'b Buffer<'a>,
 	target: BufferTarget,
+	address: *mut c_void,
 }
 
 impl<'a> Buffer<'a> {
@@ -89,26 +91,31 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 		self.buffer.glcore.glBindBuffer(self.target as u32, 0);
 	}
 
-	pub fn map(&self, access: MapAccess) -> BufferMap<'a, 'b> {
+	pub fn map(&self, access: MapAccess) -> (BufferMap<'a, 'b>, *mut c_void) {
 		BufferMap::new(&self.buffer, self.target, access)
+	}
+	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> (BufferMap<'a, 'b>, *mut c_void) {
+		BufferMap::new_ranged(&self.buffer, self.target, offset, length, access)
 	}
 }
 
 impl<'a, 'b> BufferMap<'a, 'b> {
-	fn new(buffer: &'b Buffer<'a>, target: BufferTarget, access: MapAccess) -> Self {
-		buffer.glcore.glMapBuffer(target as u32, access as u32);
-		Self {
+	fn new(buffer: &'b Buffer<'a>, target: BufferTarget, access: MapAccess) -> (Self, *mut c_void) {
+		let address = buffer.glcore.glMapBuffer(target as u32, access as u32);
+		(Self {
 			buffer,
 			target,
-		}
+			address,
+		}, address)
 	}
 
-	fn new_ranged(buffer: &'b Buffer<'a>, target: BufferTarget, offset: usize, length: usize, access: MapAccess) -> Self {
-		buffer.glcore.glMapBufferRange(target as u32, offset, length, access as u32);
-		Self {
+	fn new_ranged(buffer: &'b Buffer<'a>, target: BufferTarget, offset: usize, length: usize, access: MapAccess) -> (Self, *mut c_void) {
+		let address = buffer.glcore.glMapBufferRange(target as u32, offset, length, access as u32);
+		(Self {
 			buffer,
 			target,
-		}
+			address,
+		}, address)
 	}
 
 	fn drop(&self) {
