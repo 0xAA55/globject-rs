@@ -2,6 +2,7 @@
 
 use glcore::*;
 use std::{
+	cmp::min,
 	ffi::c_void,
 	fmt::{self, Debug, Formatter}
 };
@@ -87,6 +88,21 @@ impl<'a> Buffer<'a> {
 			target,
 			size,
 		}
+	}
+
+	/// Resize the buffer. Actually, this operation will reallocate the buffer and copy the data.
+	pub fn resize(&'a mut self, new_size: usize) {
+		let new_size = min(self.size, new_size);
+		let mut name: u32 = 0;
+		self.glcore.glGenBuffers(1, &mut name as *mut u32);
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, self.name);
+		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, name);
+		self.glcore.glBufferData(BufferTarget::CopyWriteBuffer as u32, new_size, std::ptr::null(), self.usage as u32);
+		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, BufferTarget::CopyWriteBuffer as u32, 0, 0, new_size);
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, 0);
+		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, 0);
+		self.glcore.glDeleteBuffers(1, &self.name as *const u32);
+		self.name = name;
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
@@ -233,5 +249,6 @@ impl Debug for MapAccess {
 		}
 	}
 }
+
 
 
