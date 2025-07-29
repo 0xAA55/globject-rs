@@ -51,6 +51,9 @@ pub enum MapAccess {
 pub struct Buffer<'a> {
 	glcore: &'a GLCore,
 	name: u32,
+	usage: BufferUsage,
+	target: BufferTarget,
+	size: usize,
 }
 
 /// When to use a buffer, must bind the buffer first. The RAII system could help automatically unbind the buffer.
@@ -79,12 +82,16 @@ impl<'a> Buffer<'a> {
 		Self {
 			glcore,
 			name,
+			usage,
+			target,
+			size,
 		}
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'b>(&'a self, target: BufferTarget) -> BufferBind<'a, 'b> {
-		BufferBind::new(&self, target)
+	pub fn bind<'b>(&'a mut self, target: BufferTarget) -> BufferBind<'a, 'b> {
+		self.target = target;
+		BufferBind::new(&*self, target)
 	}
 
 	/// Delete the OpenGL buffer on `drop()` called.
@@ -98,6 +105,9 @@ impl<'a> Debug for Buffer<'a> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Buffer")
 		.field("name", &self.name)
+		.field("usage", &self.usage)
+		.field("target", &self.target)
+		.field("size", &self.size)
 		.finish()
 	}
 }
