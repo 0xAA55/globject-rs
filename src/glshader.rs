@@ -17,7 +17,7 @@ pub enum ShaderError {
 	CSError(String),
 
 	/// Shader program linkage error
-	LinakgeError(String),
+	LinkageError(String),
 }
 
 /// The OpenGL shader object
@@ -72,7 +72,7 @@ impl<'a> Shader<'a> {
 			glcore.glGetProgramInfoLog(program, output_len, &mut output_len_ret as *mut i32, output.as_mut_ptr() as *mut i8);
 			glcore.glDeleteProgram(program);
 			let output = String::from_utf8_lossy(&output).to_string();
-			Err(ShaderError::LinakgeError(output))
+			Err(ShaderError::LinkageError(output))
 		}
 	}
 
