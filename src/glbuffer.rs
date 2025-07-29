@@ -7,7 +7,7 @@ use std::{
 };
 
 /// The OpenGL buffer binding targets
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum BufferTarget {
 	ArrayBuffer = GL_ARRAY_BUFFER as isize,
 	AtomicCounterBuffer = GL_ATOMIC_COUNTER_BUFFER as isize,
@@ -26,7 +26,7 @@ pub enum BufferTarget {
 }
 
 /// The usage for the buffer
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum BufferUsage {
 	StreamDraw = GL_STREAM_DRAW as isize,
 	StreamRead = GL_STREAM_READ as isize,
@@ -40,7 +40,7 @@ pub enum BufferUsage {
 }
 
 /// The access flags for `glMapBuffers()`
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum MapAccess {
 	ReadOnly = GL_READ_ONLY as isize,
 	WriteOnly = GL_WRITE_ONLY as isize,
@@ -164,3 +164,52 @@ impl<'a, 'b> BufferMapping<'a, 'b> {
 		self.buffer.glcore.glUnmapBuffer(self.target as u32);
 	}
 }
+
+impl Debug for BufferTarget {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::ArrayBuffer => write!(f, "ArrayBuffer"),
+			Self::AtomicCounterBuffer => write!(f, "AtomicCounterBuffer"),
+			Self::CopyReadBuffer => write!(f, "CopyReadBuffer"),
+			Self::CopyWriteBuffer => write!(f, "CopyWriteBuffer"),
+			Self::DispatchIndirectBuffer => write!(f, "DispatchIndirectBuffer"),
+			Self::DrawIndirectBuffer => write!(f, "DrawIndirectBuffer"),
+			Self::ElementArrayBuffer => write!(f, "ElementArrayBuffer"),
+			Self::PixelPackBuffer => write!(f, "PixelPackBuffer"),
+			Self::PixelUnpackBuffer => write!(f, "PixelUnpackBuffer"),
+			Self::QueryBuffer => write!(f, "QueryBuffer"),
+			Self::ShaderStorageBuffer => write!(f, "ShaderStorageBuffer"),
+			Self::TextureBuffer => write!(f, "TextureBuffer"),
+			Self::TransformFeedbackBuffer => write!(f, "TransformFeedbackBuffer"),
+			Self::UniformBuffer => write!(f, "UniformBuffer"),
+		}
+	}
+}
+
+impl Debug for BufferUsage {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::StreamDraw => write!(f, "StreamDraw"),
+			Self::StreamRead => write!(f, "StreamRead"),
+			Self::StreamCopy => write!(f, "StreamCopy"),
+			Self::StaticDraw => write!(f, "StaticDraw"),
+			Self::StaticRead => write!(f, "StaticRead"),
+			Self::StaticCopy => write!(f, "StaticCopy"),
+			Self::DynamicDraw => write!(f, "DynamicDraw"),
+			Self::DynamicRead => write!(f, "DynamicRead"),
+			Self::DynamicCopy => write!(f, "DynamicCopy"),
+		}
+	}
+}
+
+impl Debug for MapAccess {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::ReadOnly => write!(f, "StreamDraw"),
+			Self::WriteOnly => write!(f, "StreamRead"),
+			Self::ReadWrite => write!(f, "StreamCopy"),
+		}
+	}
+}
+
+
