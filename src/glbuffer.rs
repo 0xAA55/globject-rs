@@ -101,6 +101,25 @@ impl<'a> Buffer<'a> {
 	}
 }
 
+impl<'a> Clone for Buffer<'a> {
+	fn clone(&self) -> Self {
+		let mut name: u32 = 0;
+		self.glcore.glGenBuffers(1, &mut name as *mut u32);
+		self.glcore.glBindBuffer(self.target as u32, name);
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, self.name);
+		self.glcore.glBufferData(BufferTarget::CopyWriteBuffer as u32, self.size, std::ptr::null(), self.usage as u32);
+		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, self.target as u32, 0, 0, self.size);
+		self.glcore.glBindBuffer(self.target as u32, 0);
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, 0);
+		Self {
+			glcore: self.glcore,
+			name,
+			usage: self.usage,
+			target: self.target,
+			size: self.size,
+		}
+	}
+}
 
 impl<'a> Debug for Buffer<'a> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
