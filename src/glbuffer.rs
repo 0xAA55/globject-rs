@@ -65,7 +65,7 @@ pub struct BufferBind<'a, 'b> {
 
 /// When to modify the buffer or retrieve the data from the buffer, use map to update the buffer.
 #[derive(Debug)]
-pub struct BufferMap<'a, 'b> {
+pub struct BufferMapping<'a, 'b> {
 	buffer: &'b Buffer<'a>,
 	target: BufferTarget,
 	address: *mut c_void,
@@ -127,18 +127,18 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 		self.buffer.glcore.glBindBuffer(self.target as u32, 0);
 	}
 
-	/// Create a `BufferMap` to use the RAII system to manage the mapping state.
-	pub fn map(&self, access: MapAccess) -> (BufferMap<'a, 'b>, *mut c_void) {
-		BufferMap::new(&self.buffer, self.target, access)
+	/// Create a `BufferMapping` to use the RAII system to manage the mapping state.
+	pub fn map(&self, access: MapAccess) -> (BufferMapping<'a, 'b>, *mut c_void) {
+		BufferMapping::new(&self.buffer, self.target, access)
 	}
 
-	/// Create a `BufferMap` to use the RAII system to manage the mapping state, with partially mapped range.
-	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> (BufferMap<'a, 'b>, *mut c_void) {
-		BufferMap::new_ranged(&self.buffer, self.target, offset, length, access)
+	/// Create a `BufferMapping` to use the RAII system to manage the mapping state, with partially mapped range.
+	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> (BufferMapping<'a, 'b>, *mut c_void) {
+		BufferMapping::new_ranged(&self.buffer, self.target, offset, length, access)
 	}
 }
 
-impl<'a, 'b> BufferMap<'a, 'b> {
+impl<'a, 'b> BufferMapping<'a, 'b> {
 	/// Map to the buffer to modify or retrieve the data of the buffer
 	fn new(buffer: &'b Buffer<'a>, target: BufferTarget, access: MapAccess) -> (Self, *mut c_void) {
 		let address = buffer.glcore.glMapBuffer(target as u32, access as u32);
