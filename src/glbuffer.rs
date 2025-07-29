@@ -68,6 +68,7 @@ pub struct BufferBind<'a, 'b> {
 pub struct BufferMapping<'a, 'b> {
 	buffer: &'b Buffer<'a>,
 	target: BufferTarget,
+	access: MapAccess,
 	address: *mut c_void,
 }
 
@@ -145,6 +146,7 @@ impl<'a, 'b> BufferMapping<'a, 'b> {
 		(Self {
 			buffer,
 			target,
+			access,
 			address,
 		}, address)
 	}
@@ -155,6 +157,7 @@ impl<'a, 'b> BufferMapping<'a, 'b> {
 		(Self {
 			buffer,
 			target,
+			access,
 			address,
 		}, address)
 	}
