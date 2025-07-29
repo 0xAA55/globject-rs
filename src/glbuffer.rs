@@ -1,7 +1,10 @@
 #![allow(dead_code)]
 
 use glcore::*;
-use std::ffi::c_void;
+use std::{
+	ffi::c_void,
+	fmt::{self, Debug, Formatter}
+};
 
 /// The OpenGL buffer binding targets
 #[derive(Debug, Clone, Copy)]
@@ -51,12 +54,14 @@ pub struct Buffer<'a> {
 }
 
 /// When to use a buffer, must bind the buffer first. The RAII system could help automatically unbind the buffer.
+#[derive(Debug)]
 pub struct BufferBind<'a, 'b> {
 	buffer: &'b Buffer<'a>,
 	target: BufferTarget,
 }
 
 /// When to modify the buffer or retrieve the data from the buffer, use map to update the buffer.
+#[derive(Debug)]
 pub struct BufferMap<'a, 'b> {
 	buffer: &'b Buffer<'a>,
 	target: BufferTarget,
@@ -85,6 +90,15 @@ impl<'a> Buffer<'a> {
 	/// Delete the OpenGL buffer on `drop()` called.
 	fn drop(&self) {
 		self.glcore.glDeleteBuffers(1, &self.name as *const u32);
+	}
+}
+
+
+impl<'a> Debug for Buffer<'a> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.debug_struct("Buffer")
+		.field("name", &self.name)
+		.finish()
 	}
 }
 
