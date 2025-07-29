@@ -2,7 +2,11 @@
 
 pub mod glbuffer;
 pub mod glshader;
-pub mod glmesh;
+pub mod glcmdbuf;
+pub mod mesh;
+pub mod arraybuffer;
+
+extern crate nalgebra_glm as glm;
 
 #[cfg(test)]
 mod tests {
