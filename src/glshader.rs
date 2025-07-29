@@ -1,8 +1,12 @@
 #![allow(dead_code)]
 
 use glcore::*;
+use std::{
+	fmt::{self, Debug, Formatter}
+};
 
 /// Error produced from the shader
+#[derive(Clone)]
 pub enum ShaderError {
 	/// Vertex Shader error
 	VSError(String),
@@ -129,5 +133,25 @@ impl<'a> Shader<'a> {
 
 	fn drop(&self) {
 		self.glcore.glDeleteProgram(self.program)
+	}
+}
+
+impl<'a> Debug for Shader<'a> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.debug_struct("Shader")
+		.field("program", &self.program)
+		.finish()
+	}
+}
+
+impl Debug for ShaderError {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::VSError(infolog) => write!(f, "Vertex Shader Error:\n{infolog}"),
+			Self::GSError(infolog) => write!(f, "Geometry Shader Error:\n{infolog}"),
+			Self::FSError(infolog) => write!(f, "Fragment Shader Error:\n{infolog}"),
+			Self::CSError(infolog) => write!(f, "Compute Shader Error:\n{infolog}"),
+			Self::LinkageError(infolog) => write!(f, "Shader Linkage Error:\n{infolog}"),
+		}
 	}
 }
