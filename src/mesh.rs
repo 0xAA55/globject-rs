@@ -9,26 +9,28 @@ use std::{
 
 #[derive(Clone)]
 pub struct Mesh<'a> {
-	glcore: &'a GLCore,
-	vertex_buffer: Buffer<'a>,
-	instance_buffer: Option<Buffer<'a>>,
-	command_buffer: Option<Buffer<'a>>
+	pub glcore: &'a GLCore,
+	pub vertex_buffer: Buffer<'a>,
+	pub instance_buffer: Option<Buffer<'a>>,
+	pub command_buffer: Option<Buffer<'a>>,
 }
 
 #[derive(Clone)]
 pub struct EditableMesh<'a> {
-	glcore: &'a GLCore,
-	vertex_buffer: ArrayBuffer<'a>,
-	instance_buffer: Option<ArrayBuffer<'a>>,
-	command_buffer: Option<ArrayBuffer<'a>>
+	pub glcore: &'a GLCore,
+	pub vertex_buffer: ArrayBuffer<'a>,
+	pub instance_buffer: Option<ArrayBuffer<'a>>,
+	pub command_buffer: Option<ArrayBuffer<'a>>,
 }
 
 #[derive(Clone)]
 pub struct DynamicMesh<'a, T: ArrayBufferItem> {
-	glcore: &'a GLCore,
-	vertex_buffer: ArrayBufferDynamic<'a, T>,
-	instance_buffer: Option<ArrayBufferDynamic<'a, T>>,
-	command_buffer: Option<ArrayBufferDynamic<'a, T>>
+	pub glcore: &'a GLCore,
+	pub vertex_buffer: ArrayBufferDynamic<'a, T>,
+	pub instance_buffer: Option<ArrayBufferDynamic<'a, T>>,
+	pub command_buffer: Option<ArrayBufferDynamic<'a, T>>,
+}
+
 }
 
 impl<'a> Debug for Mesh<'a> {
