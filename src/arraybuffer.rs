@@ -18,6 +18,7 @@ pub trait ArrayBufferItem: Copy + Sized + Default {}
 impl<T> ArrayBufferItem for T where T: Copy + Sized + Default {}
 
 impl<'a> ArrayBuffer<'a> {
+	/// Convert `Buffer` to an `ArrayBuffer`
 	pub fn new(glcore: &'a GLCore, mut buffer: Buffer<'a>) -> Self {
 		buffer.set_target(BufferTarget::ArrayBuffer);
 		Self {
@@ -26,14 +27,17 @@ impl<'a> ArrayBuffer<'a> {
 		}
 	}
 
+	/// Get the size of the buffer
 	pub fn size(&self) -> usize {
 		self.buffer.size()
 	}
 
+	/// Resize (reallocate) the buffer
 	pub fn resize<T: ArrayBufferItem>(&'a mut self, new_len: usize, value: T) {
 		self.buffer.resize(new_len, value)
 	}
 
+	/// Retrieve data from GPU
 	pub fn get_data<T: ArrayBufferItem>(&self, index: usize) -> T {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
@@ -44,6 +48,7 @@ impl<'a> ArrayBuffer<'a> {
 		ret
 	}
 
+	/// Update data to GPU
 	pub fn set_data<T: ArrayBufferItem>(&mut self, index: usize, data: &T) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
@@ -55,6 +60,7 @@ impl<'a> ArrayBuffer<'a> {
 		map.unmap();
 	}
 
+	/// Retrieve multiple data from GPU
 	pub fn get_multi_data<T: ArrayBufferItem>(&self, index: usize, data: &mut [T]) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
@@ -66,6 +72,7 @@ impl<'a> ArrayBuffer<'a> {
 		map.unmap();
 	}
 
+	/// Update multiple data to GPU
 	pub fn set_multi_data<T: ArrayBufferItem>(&mut self, index: usize, data: &[T]) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
@@ -96,6 +103,7 @@ pub struct ArrayBufferDynamic<'a, T: ArrayBufferItem> {
 }
 
 impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
+	/// Convert an `ArrayBuffer` to the `ArrayBufferDynamic`
 	pub fn new(buffer: ArrayBuffer<'a>, num_items: usize) -> Self {
 		let capacity = buffer.size() / size_of::<T>();
 		let mut cache_modified_bitmap = BitVec::new();
@@ -114,14 +122,17 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 		}
 	}
 
+	/// Get num items of the buffer
 	pub fn len(&self) -> usize {
 		self.num_items
 	}
 
+	/// Get the capacity of the current buffer
 	pub fn capacity(&self) -> usize {
 		self.capacity
 	}
 
+	/// Resizes to the new size, reallocate the buffer if the new size is larger.
 	pub fn resize(&'a mut self, new_len: usize, value: T) {
 		self.cache.resize(new_len, value);
 		self.num_items = new_len;
@@ -136,6 +147,7 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 		}
 	}
 
+	/// Reallocate the buffer to fit
 	pub fn shrink_to_fit(&'a mut self) {
 		if self.capacity > self.num_items {
 			self.cache.shrink_to_fit();
@@ -147,6 +159,7 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 		}
 	}
 
+	/// Commit all changes to the buffer to OpenGL Buffer Object
 	pub fn flush(&mut self) {
 		if self.cache_modified == false {
 			return;
