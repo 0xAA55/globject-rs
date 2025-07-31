@@ -2,6 +2,7 @@
 
 use glcore::*;
 use crate::glbuffer::*;
+use crate::glcmdbuf::*;
 use crate::arraybuffer::*;
 use std::{
 	fmt::{self, Debug, Formatter}
@@ -28,7 +29,7 @@ pub struct DynamicMesh<'a, T: ArrayBufferItem> {
 	pub glcore: &'a GLCore,
 	pub vertex_buffer: ArrayBufferDynamic<'a, T>,
 	pub instance_buffer: Option<ArrayBufferDynamic<'a, T>>,
-	pub command_buffer: Option<ArrayBufferDynamic<'a, T>>,
+	pub command_buffer: Option<ArrayBufferDynamic<'a, DrawCommand>>,
 }
 
 impl<'a> StaticMesh<'a> {
@@ -54,7 +55,7 @@ impl<'a> EditableMesh<'a> {
 }
 
 impl<'a, T: ArrayBufferItem> DynamicMesh<'a, T> {
-	pub fn new(glcore: &'a GLCore, vertex_buffer: ArrayBufferDynamic<'a, T>, instance_buffer: Option<ArrayBufferDynamic<'a, T>>, command_buffer: Option<ArrayBufferDynamic<'a, T>>) -> Self {
+	pub fn new(glcore: &'a GLCore, vertex_buffer: ArrayBufferDynamic<'a, T>, instance_buffer: Option<ArrayBufferDynamic<'a, T>>, command_buffer: Option<ArrayBufferDynamic<'a, DrawCommand>>) -> Self {
 		Self {
 			glcore,
 			vertex_buffer,
