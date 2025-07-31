@@ -194,7 +194,8 @@ impl<'a, T: ArrayBufferItem> Into<ArrayBufferDynamic<'a, T>> for ArrayBuffer<'a>
 }
 
 impl<'a, T: ArrayBufferItem> Into<ArrayBuffer<'a>> for ArrayBufferDynamic<'a, T> {
-	fn into(self) -> ArrayBuffer<'a> {
+	fn into(mut self) -> ArrayBuffer<'a> {
+		self.flush();
 		self.buffer
 	}
 }
