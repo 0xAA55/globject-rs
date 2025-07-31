@@ -181,6 +181,8 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 		}
 	}
 
+	pub fn unbind(self) {}
+
 	/// Unbind if dropped
 	fn drop(&self) {
 		self.buffer.glcore.glBindBuffer(self.target as u32, 0);
@@ -219,6 +221,8 @@ impl<'a, 'b> BufferMapping<'a, 'b> {
 			address,
 		}, address)
 	}
+
+	pub fn unmap(self) {}
 
 	/// Unmap the buffer when dropped
 	fn drop(&self) {
