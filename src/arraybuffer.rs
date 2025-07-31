@@ -136,6 +136,17 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 		}
 	}
 
+	pub fn shrink_to_fit(&'a mut self) {
+		if self.capacity > self.num_items {
+			self.cache.shrink_to_fit();
+			self.cache_modified_bitmap.clear(); // set all false
+			self.cache_modified_bitmap.resize(self.num_items, false);
+			self.buffer.resize(self.num_items, T::default());
+			self.capacity = self.num_items;
+			self.cache_modified = false;
+		}
+	}
+
 	pub fn flush(&mut self) {
 		if self.cache_modified == false {
 			return;
