@@ -110,8 +110,14 @@ impl<'a> Buffer<'a> {
 		self.name = name;
 	}
 
+
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'b>(&'a mut self, target: BufferTarget) -> BufferBind<'a, 'b> {
+	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b> {
+		BufferBind::new(&*self, self.target)
+	}
+
+	/// Create a `BufferBind` to use the RAII system to manage the binding state.
+	pub fn bind_to<'b>(&'a mut self, target: BufferTarget) -> BufferBind<'a, 'b> {
 		self.target = target;
 		BufferBind::new(&*self, target)
 	}
