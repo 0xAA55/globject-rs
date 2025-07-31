@@ -4,6 +4,7 @@ use glcore::*;
 use crate::glbuffer::*;
 use bitvec::vec::BitVec;
 use std::{
+	fmt::Debug,
 	mem::size_of,
 	ops::{Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
 };
@@ -14,8 +15,8 @@ pub struct ArrayBuffer<'a> {
 	buffer: Buffer<'a>,
 }
 
-pub trait ArrayBufferItem: Copy + Sized + Default {}
-impl<T> ArrayBufferItem for T where T: Copy + Sized + Default {}
+pub trait ArrayBufferItem: Copy + Sized + Default + Debug {}
+impl<T> ArrayBufferItem for T where T: Copy + Sized + Default + Debug {}
 
 impl<'a> ArrayBuffer<'a> {
 	/// Convert `Buffer` to an `ArrayBuffer`
