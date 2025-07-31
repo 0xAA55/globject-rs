@@ -90,6 +90,11 @@ impl<'a> Buffer<'a> {
 		}
 	}
 
+	/// Get the size of the buffer in bytes
+	pub fn size(&self) -> usize {
+		self.size
+	}
+
 	/// Resize the buffer. Actually, this operation will reallocate the buffer and copy the data.
 	pub fn resize(&'a mut self, new_size: usize) {
 		let new_size = min(self.size, new_size);
