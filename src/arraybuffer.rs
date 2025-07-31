@@ -92,6 +92,15 @@ impl<'a> Into<Buffer<'a>> for ArrayBuffer<'a> {
 	}
 }
 
+impl<'a> Into<ArrayBuffer<'a>> for Buffer<'a> {
+	fn into(self) -> ArrayBuffer<'a> {
+		ArrayBuffer {
+			glcore: self.glcore,
+			buffer: self,
+		}
+	}
+}
+
 #[derive(Debug, Clone)]
 pub struct ArrayBufferDynamic<'a, T: ArrayBufferItem> {
 	pub glcore: &'a GLCore,
