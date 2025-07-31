@@ -4,7 +4,8 @@ use glcore::*;
 use std::{
 	cmp::min,
 	ffi::c_void,
-	fmt::{self, Debug, Formatter}
+	fmt::{self, Debug, Formatter},
+	mem::size_of,
 };
 
 /// The OpenGL buffer binding targets
@@ -96,14 +97,21 @@ impl<'a> Buffer<'a> {
 	}
 
 	/// Resize the buffer. Actually, this operation will reallocate the buffer and copy the data.
-	pub fn resize(&'a mut self, new_size: usize) {
-		let new_size = min(self.size, new_size);
+	pub fn resize<T: Copy + Sized>(&'a mut self, new_len: usize, value: T) {
+		let new_len = min(self.size, new_len);
+		let data = vec![value; new_len / size_of::<T>()];
 		let mut name: u32 = 0;
 		self.glcore.glGenBuffers(1, &mut name as *mut u32);
 		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, self.name);
 		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, name);
-		self.glcore.glBufferData(BufferTarget::CopyWriteBuffer as u32, new_size, std::ptr::null(), self.usage as u32);
-		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, BufferTarget::CopyWriteBuffer as u32, 0, 0, new_size);
+		self.glcore.glBufferData(BufferTarget::CopyWriteBuffer as u32, new_len,
+			if new_len > self.size {
+				data.as_ptr() as *const c_void
+			} else {
+				std::ptr::null()
+			},
+			self.usage as u32);
+		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, BufferTarget::CopyWriteBuffer as u32, 0, 0, new_len);
 		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, 0);
 		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, 0);
 		self.glcore.glDeleteBuffers(1, &self.name as *const u32);
