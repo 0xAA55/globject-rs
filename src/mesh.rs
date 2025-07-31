@@ -159,3 +159,89 @@ impl<'a, T: ArrayBufferItem> Debug for DynamicMesh<'a, T> {
 		.finish()
 	}
 }
+
+pub trait Mesh {
+	fn get_glcore(&self) -> &GLCore;
+	fn get_vertex_buffer(&self) -> &Buffer;
+	fn get_instance_buffer(&self) -> Option<&Buffer>;
+	fn get_command_buffer(&self) -> Option<&Buffer>;
+}
+
+impl Mesh for StaticMesh<'_> {
+	fn get_glcore(&self) -> &GLCore {
+		self.glcore
+	}
+
+	fn get_vertex_buffer(&self) -> &Buffer {
+		&self.vertex_buffer
+	}
+
+	fn get_instance_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.instance_buffer {
+			Some(&buffer)
+		} else {
+			None
+		}
+	}
+
+	fn get_command_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.command_buffer {
+			Some(&buffer)
+		} else {
+			None
+		}
+	}
+}
+
+impl Mesh for EditableMesh<'_> {
+	fn get_glcore(&self) -> &GLCore {
+		self.glcore
+	}
+
+	fn get_vertex_buffer(&self) -> &Buffer {
+		&self.vertex_buffer.get_buffer()
+	}
+
+	fn get_instance_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.instance_buffer {
+			Some(buffer.get_buffer())
+		} else {
+			None
+		}
+	}
+
+	fn get_command_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.command_buffer {
+			Some(buffer.get_buffer())
+		} else {
+			None
+		}
+	}
+}
+
+impl<T: ArrayBufferItem> Mesh for DynamicMesh<'_, T> {
+	fn get_glcore(&self) -> &GLCore {
+		self.glcore
+	}
+
+	fn get_vertex_buffer(&self) -> &Buffer {
+		&self.vertex_buffer.get_buffer()
+	}
+
+	fn get_instance_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.instance_buffer {
+			Some(buffer.get_buffer())
+		} else {
+			None
+		}
+	}
+
+	fn get_command_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.command_buffer {
+			Some(buffer.get_buffer())
+		} else {
+			None
+		}
+	}
+}
+
