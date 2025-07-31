@@ -48,8 +48,10 @@ mod tests {
             })
         }
 
-        pub fn run(&mut self) -> ExitCode {
+        pub fn run(&mut self, timeout: f64) -> ExitCode {
+            let start_debug_time = self.window.glfw.get_time();
             while !self.window.should_close() {
+                let time_cur_frame = self.window.glfw.get_time();
                 self.glcore.glClearColor(0.0, 0.6, 0.9, 1.0);
                 self.glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -63,6 +65,12 @@ mod tests {
                         _ => {}
                     }
                 }
+
+                if timeout > 0.0 {
+                    if time_cur_frame - start_debug_time >= timeout {
+                        self.window.set_should_close(true)
+                    }
+                }
             }
 
             ExitCode::from(0)
@@ -71,6 +79,7 @@ mod tests {
 
     #[test]
     fn test_glfw() -> ExitCode {
+        const DEBUG_TIME: f64 = 10.0;
         let mut test_app = match AppInstance::new() {
             Ok(app) => app,
             Err(e) => {
@@ -78,6 +87,6 @@ mod tests {
                 return ExitCode::from(2)
             }
         };
-        test_app.run()
+        test_app.run(DEBUG_TIME)
     }
 }
