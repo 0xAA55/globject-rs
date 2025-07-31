@@ -3,6 +3,7 @@
 pub mod glbuffer;
 pub mod glshader;
 pub mod glcmdbuf;
+pub mod gltexture;
 pub mod framebuffer;
 pub mod buffervec;
 pub mod mesh;
