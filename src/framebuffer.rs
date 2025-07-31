@@ -2,7 +2,6 @@
 
 use glcore::*;
 
-pub struct Framebuffer {
-	
+pub struct Framebuffer<'a> {
+	glcore: &'a GLCore,
 }
-
