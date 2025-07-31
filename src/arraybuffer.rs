@@ -11,7 +11,7 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub struct ArrayBuffer<'a> {
-	glcore: &'a GLCore,
+	pub glcore: &'a GLCore,
 	buffer: Buffer<'a>,
 }
 
@@ -94,7 +94,7 @@ impl<'a> Into<Buffer<'a>> for ArrayBuffer<'a> {
 
 #[derive(Debug, Clone)]
 pub struct ArrayBufferDynamic<'a, T: ArrayBufferItem> {
-	glcore: &'a GLCore,
+	pub glcore: &'a GLCore,
 	buffer: ArrayBuffer<'a>,
 	num_items: usize,
 	capacity: usize,
