@@ -124,11 +124,16 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 
 	pub fn resize(&'a mut self, new_len: usize, value: T) {
 		self.cache.resize(new_len, value);
-		self.cache_modified_bitmap.clear(); // set all false
-		self.cache_modified_bitmap.resize(new_len, false);
-		self.buffer.resize(new_len, value);
-		self.cache_modified = false;
 		self.num_items = new_len;
+		if new_len > self.capacity {
+			self.cache_modified_bitmap.clear(); // set all false
+			self.cache_modified_bitmap.resize(new_len, false);
+			self.buffer.resize(new_len, value);
+			self.capacity = new_len;
+			self.cache_modified = false;
+		} else {
+			self.cache_modified_bitmap.resize(new_len, false);
+		}
 	}
 
 	pub fn flush(&mut self) {
