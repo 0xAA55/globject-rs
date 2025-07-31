@@ -229,6 +229,13 @@ impl<'a, T: ArrayBufferItem> Into<Buffer<'a>> for ArrayBufferDynamic<'a, T> {
 	}
 }
 
+impl<'a, T: ArrayBufferItem> Into<ArrayBufferDynamic<'a, T>> for Buffer<'a> {
+	fn into(self) -> ArrayBufferDynamic<'a, T> {
+		let ab: ArrayBuffer = self.into();
+		ab.into()
+	}
+}
+
 impl<'a, T: ArrayBufferItem> Index<usize> for ArrayBufferDynamic<'a, T> {
 	type Output = T;
 	fn index(&self, i: usize) -> &T {
