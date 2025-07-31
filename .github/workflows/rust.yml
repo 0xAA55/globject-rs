@@ -34,4 +34,6 @@ jobs:
     - name: Build
       run: cargo build --release --verbose
     - name: Run tests
-      run: cargo test --release --verbose
+      run: |
+        export DISPLAY=:99.0
+        cargo test --release --verbose
