@@ -184,6 +184,7 @@ impl<'a, T: ArrayBufferItem> Index<usize> for ArrayBufferDynamic<'a, T> {
 
 impl<'a, T: ArrayBufferItem> IndexMut<usize> for ArrayBufferDynamic<'a, T> {
 	fn index_mut(&mut self, i: usize) -> &mut T {
+		self.cache_modified = true;
 		self.cache_modified_bitmap.set(i, true);
 		&mut self.cache[i]
 	}
@@ -198,6 +199,7 @@ impl<'a, T: ArrayBufferItem> Index<Range<usize>> for ArrayBufferDynamic<'a, T> {
 
 impl<'a, T: ArrayBufferItem> IndexMut<Range<usize>> for ArrayBufferDynamic<'a, T> {
 	fn index_mut(&mut self, r: Range<usize>) -> &mut [T] {
+		self.cache_modified = true;
 		for i in r.start..r.end {
 			self.cache_modified_bitmap.set(i, true);
 		}
@@ -214,6 +216,7 @@ impl<'a, T: ArrayBufferItem> Index<RangeFrom<usize>> for ArrayBufferDynamic<'a, 
 
 impl<'a, T: ArrayBufferItem> IndexMut<RangeFrom<usize>> for ArrayBufferDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeFrom<usize>) -> &mut [T] {
+		self.cache_modified = true;
 		for i in r.start..self.num_items {
 			self.cache_modified_bitmap.set(i, true);
 		}
@@ -230,6 +233,7 @@ impl<'a, T: ArrayBufferItem> Index<RangeTo<usize>> for ArrayBufferDynamic<'a, T>
 
 impl<'a, T: ArrayBufferItem> IndexMut<RangeTo<usize>> for ArrayBufferDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeTo<usize>) -> &mut [T] {
+		self.cache_modified = true;
 		for i in 0..r.end {
 			self.cache_modified_bitmap.set(i, true);
 		}
@@ -246,6 +250,7 @@ impl<'a, T: ArrayBufferItem> Index<RangeFull> for ArrayBufferDynamic<'a, T> {
 
 impl<'a, T: ArrayBufferItem> IndexMut<RangeFull> for ArrayBufferDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeFull) -> &mut [T] {
+		self.cache_modified = true;
 		for i in 0..self.num_items {
 			self.cache_modified_bitmap.set(i, true);
 		}
@@ -262,6 +267,7 @@ impl<'a, T: ArrayBufferItem> Index<RangeInclusive<usize>> for ArrayBufferDynamic
 
 impl<'a, T: ArrayBufferItem> IndexMut<RangeInclusive<usize>> for ArrayBufferDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeInclusive<usize>) -> &mut [T] {
+		self.cache_modified = true;
 		for i in *r.start()..=*r.end() {
 			self.cache_modified_bitmap.set(i, true);
 		}
@@ -278,6 +284,7 @@ impl<'a, T: ArrayBufferItem> Index<RangeToInclusive<usize>> for ArrayBufferDynam
 
 impl<'a, T: ArrayBufferItem> IndexMut<RangeToInclusive<usize>> for ArrayBufferDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeToInclusive<usize>) -> &mut [T] {
+		self.cache_modified = true;
 		for i in 0..=r.end {
 			self.cache_modified_bitmap.set(i, true);
 		}
