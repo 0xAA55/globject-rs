@@ -8,7 +8,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct Mesh<'a> {
+pub struct StaticMesh<'a> {
 	pub glcore: &'a GLCore,
 	pub vertex_buffer: Buffer<'a>,
 	pub instance_buffer: Option<Buffer<'a>>,
@@ -31,7 +31,7 @@ pub struct DynamicMesh<'a, T: ArrayBufferItem> {
 	pub command_buffer: Option<ArrayBufferDynamic<'a, T>>,
 }
 
-impl<'a> Mesh<'a> {
+impl<'a> StaticMesh<'a> {
 	pub fn new(glcore: &'a GLCore, vertex_buffer: Buffer<'a>, instance_buffer: Option<Buffer<'a>>, command_buffer: Option<Buffer<'a>>) -> Self {
 		Self {
 			glcore,
@@ -64,7 +64,7 @@ impl<'a, T: ArrayBufferItem> DynamicMesh<'a, T> {
 	}
 }
 
-impl<'a> Into<EditableMesh<'a>> for Mesh<'a> {
+impl<'a> Into<EditableMesh<'a>> for StaticMesh<'a> {
 	fn into(self) -> EditableMesh<'a> {
 		EditableMesh {
 			glcore: self.glcore,
@@ -75,9 +75,9 @@ impl<'a> Into<EditableMesh<'a>> for Mesh<'a> {
 	}
 }
 
-impl<'a> Into<Mesh<'a>> for EditableMesh<'a> {
-	fn into(self) -> Mesh<'a> {
-		Mesh {
+impl<'a> Into<StaticMesh<'a>> for EditableMesh<'a> {
+	fn into(self) -> StaticMesh<'a> {
+		StaticMesh {
 			glcore: self.glcore,
 			vertex_buffer: self.vertex_buffer.into(),
 			instance_buffer: self.instance_buffer.map(|b|b.into()),
@@ -86,7 +86,7 @@ impl<'a> Into<Mesh<'a>> for EditableMesh<'a> {
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Into<DynamicMesh<'a, T>> for Mesh<'a> {
+impl<'a, T: ArrayBufferItem> Into<DynamicMesh<'a, T>> for StaticMesh<'a> {
 	fn into(self) -> DynamicMesh<'a, T> {
 		DynamicMesh {
 			glcore: self.glcore,
@@ -97,9 +97,9 @@ impl<'a, T: ArrayBufferItem> Into<DynamicMesh<'a, T>> for Mesh<'a> {
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Into<Mesh<'a>> for DynamicMesh<'a, T> {
-	fn into(self) -> Mesh<'a> {
-		Mesh {
+impl<'a, T: ArrayBufferItem> Into<StaticMesh<'a>> for DynamicMesh<'a, T> {
+	fn into(self) -> StaticMesh<'a> {
+		StaticMesh {
 			glcore: self.glcore,
 			vertex_buffer: self.vertex_buffer.into(),
 			instance_buffer: self.instance_buffer.map(|b|b.into()),
@@ -130,9 +130,9 @@ impl<'a, T: ArrayBufferItem> Into<DynamicMesh<'a, T>> for EditableMesh<'a> {
 	}
 }
 
-impl<'a> Debug for Mesh<'a> {
+impl<'a> Debug for StaticMesh<'a> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("Mesh")
+		f.debug_struct("StaticMesh")
 		.field("vertex_buffer", &self.vertex_buffer)
 		.field("instance_buffer", &self.instance_buffer)
 		.field("command_buffer", &self.command_buffer)
