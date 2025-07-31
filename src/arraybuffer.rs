@@ -127,6 +127,8 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 		self.cache_modified_bitmap.clear(); // set all false
 		self.cache_modified_bitmap.resize(new_len, false);
 		self.buffer.resize(new_len, value);
+		self.cache_modified = false;
+		self.num_items = new_len;
 	}
 
 	pub fn flush(&mut self) {
