@@ -193,6 +193,12 @@ impl<'a, T: ArrayBufferItem> Into<ArrayBufferDynamic<'a, T>> for ArrayBuffer<'a>
 	}
 }
 
+impl<'a, T: ArrayBufferItem> Into<ArrayBuffer<'a>> for ArrayBufferDynamic<'a, T> {
+	fn into(self) -> ArrayBuffer<'a> {
+		self.buffer
+	}
+}
+
 impl<'a, T: ArrayBufferItem> Index<usize> for ArrayBufferDynamic<'a, T> {
 	type Output = T;
 	fn index(&self, i: usize) -> &T {
