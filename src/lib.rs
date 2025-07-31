@@ -3,8 +3,8 @@
 pub mod glbuffer;
 pub mod glshader;
 pub mod glcmdbuf;
-pub mod mesh;
 pub mod arraybuffer;
+pub mod mesh;
 
 extern crate nalgebra_glm as glm;
 
