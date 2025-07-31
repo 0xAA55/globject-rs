@@ -38,6 +38,11 @@ impl<'a> ArrayBuffer<'a> {
 		self.buffer.resize(new_len, value)
 	}
 
+	/// Get the buffer
+	pub fn get_buffer(&self) -> &Buffer {
+		&self.buffer
+	}
+
 	/// Retrieve data from GPU
 	pub fn get_data<T: ArrayBufferItem>(&self, index: usize) -> T {
 		let offset = index * size_of::<T>();
@@ -140,6 +145,11 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 	/// Get the capacity of the current buffer
 	pub fn capacity(&self) -> usize {
 		self.capacity
+	}
+
+	/// Get the buffer
+	pub fn get_buffer(&self) -> &Buffer {
+		&self.buffer.get_buffer()
 	}
 
 	/// Resizes to the new size, reallocate the buffer if the new size is larger.
