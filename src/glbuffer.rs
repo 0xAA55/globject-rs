@@ -110,6 +110,10 @@ impl<'a> Buffer<'a> {
 		self.name = name;
 	}
 
+	/// Set the default binding target
+	pub fn set_target(&mut self, target: BufferTarget) {
+		self.target = target;
+	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
 	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b> {
