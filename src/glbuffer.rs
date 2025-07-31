@@ -51,7 +51,7 @@ pub enum MapAccess {
 
 /// The OpenGL buffer object
 pub struct Buffer<'a> {
-	glcore: &'a GLCore,
+	pub glcore: &'a GLCore,
 	name: u32,
 	usage: BufferUsage,
 	target: BufferTarget,
@@ -61,14 +61,14 @@ pub struct Buffer<'a> {
 /// When to use a buffer, must bind the buffer first. The RAII system could help automatically unbind the buffer.
 #[derive(Debug)]
 pub struct BufferBind<'a, 'b> {
-	buffer: &'b Buffer<'a>,
+	pub buffer: &'b Buffer<'a>,
 	target: BufferTarget,
 }
 
 /// When to modify the buffer or retrieve the data from the buffer, use map to update the buffer.
 #[derive(Debug)]
 pub struct BufferMapping<'a, 'b> {
-	buffer: &'b Buffer<'a>,
+	pub buffer: &'b Buffer<'a>,
 	target: BufferTarget,
 	access: MapAccess,
 	address: *mut c_void,
@@ -94,6 +94,16 @@ impl<'a> Buffer<'a> {
 	/// Get the size of the buffer in bytes
 	pub fn size(&self) -> usize {
 		self.size
+	}
+
+	/// Get the default binding target
+	pub fn get_target(&self) -> BufferTarget {
+		self.target
+	}
+
+	/// Get the usage when initializing
+	pub fn get_usage(&self) -> BufferUsage {
+		self.usage
 	}
 
 	/// Resize the buffer. Actually, this operation will reallocate the buffer and copy the data.
@@ -181,7 +191,8 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 		}
 	}
 
-	pub fn unbind(self) {}
+	/// Unbind the buffer
+	pub fn unbind(self) {} // Unbind by owning it in the function and `drop()`
 
 	/// Unbind if dropped
 	fn drop(&self) {
@@ -196,6 +207,11 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 	/// Create a `BufferMapping` to use the RAII system to manage the mapping state, with partially mapped range.
 	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> (BufferMapping<'a, 'b>, *mut c_void) {
 		BufferMapping::new_ranged(&self.buffer, self.target, offset, length, access)
+	}
+
+	/// Get the binding target
+	pub fn get_target(&self) -> BufferTarget {
+		self.target
 	}
 }
 
@@ -222,7 +238,23 @@ impl<'a, 'b> BufferMapping<'a, 'b> {
 		}, address)
 	}
 
-	pub fn unmap(self) {}
+	/// Unmap the buffer
+	pub fn unmap(self) {} // Unmap by owning it in the function and `drop()`
+
+	/// Get the mapped target
+	pub fn get_target(&self) -> BufferTarget {
+		self.target
+	}
+
+	/// Get the mapped access
+	pub fn get_access(&self) -> MapAccess {
+		self.access
+	}
+
+	/// Get the mapping address
+	pub fn get_mapping_address(&self) -> *mut c_void {
+		self.address
+	}
 
 	/// Unmap the buffer when dropped
 	fn drop(&self) {
