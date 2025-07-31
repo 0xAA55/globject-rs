@@ -5,6 +5,7 @@ pub mod glshader;
 pub mod glcmdbuf;
 pub mod arraybuffer;
 pub mod mesh;
+pub mod pipeline;
 
 extern crate nalgebra_glm as glm;
 
