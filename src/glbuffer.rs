@@ -143,9 +143,11 @@ impl<'a> Buffer<'a> {
 		self.target = target;
 		BufferBind::new(&*self, target)
 	}
+}
 
+impl<'a> Drop for Buffer<'a> {
 	/// Delete the OpenGL buffer on `drop()` called.
-	fn drop(&self) {
+	fn drop(&mut self) {
 		self.glcore.glDeleteBuffers(1, &self.name as *const u32);
 	}
 }
@@ -194,11 +196,6 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 	/// Unbind the buffer
 	pub fn unbind(self) {} // Unbind by owning it in the function and `drop()`
 
-	/// Unbind if dropped
-	fn drop(&self) {
-		self.buffer.glcore.glBindBuffer(self.target as u32, 0);
-	}
-
 	/// Create a `BufferMapping` to use the RAII system to manage the mapping state.
 	pub fn map(&self, access: MapAccess) -> (BufferMapping<'a, 'b>, *mut c_void) {
 		BufferMapping::new(&self.buffer, self.target, access)
@@ -212,6 +209,13 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 	/// Get the binding target
 	pub fn get_target(&self) -> BufferTarget {
 		self.target
+	}
+}
+
+impl<'a, 'b> Drop for BufferBind<'a, 'b> {
+	/// Unbind if dropped
+	fn drop(&mut self) {
+		self.buffer.glcore.glBindBuffer(self.target as u32, 0);
 	}
 }
 
@@ -255,9 +259,11 @@ impl<'a, 'b> BufferMapping<'a, 'b> {
 	pub fn get_mapping_address(&self) -> *mut c_void {
 		self.address
 	}
+}
 
+impl<'a, 'b> Drop for BufferMapping<'a, 'b> {
 	/// Unmap the buffer when dropped
-	fn drop(&self) {
+	fn drop(&mut self) {
 		self.buffer.glcore.glUnmapBuffer(self.target as u32);
 	}
 }

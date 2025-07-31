@@ -130,8 +130,10 @@ impl<'a> Shader<'a> {
 	pub fn use_(&self) {
 		self.glcore.glUseProgram(self.program)
 	}
+}
 
-	fn drop(&self) {
+impl<'a> Drop for Shader<'a> {
+	fn drop(&mut self) {
 		self.glcore.glDeleteProgram(self.program)
 	}
 }
