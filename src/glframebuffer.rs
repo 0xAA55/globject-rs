@@ -3,5 +3,5 @@
 use glcore::*;
 
 pub struct Framebuffer<'a> {
-	glcore: &'a GLCore,
+	pub glcore: &'a GLCore,
 }
