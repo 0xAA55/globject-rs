@@ -142,7 +142,7 @@ impl<'a> Debug for StaticMesh<'a> {
 
 impl<'a> Debug for EditableMesh<'a> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("Mesh")
+		f.debug_struct("EditableMesh")
 		.field("vertex_buffer", &self.vertex_buffer)
 		.field("instance_buffer", &self.instance_buffer)
 		.field("command_buffer", &self.command_buffer)
@@ -152,7 +152,7 @@ impl<'a> Debug for EditableMesh<'a> {
 
 impl<'a, T: ArrayBufferItem> Debug for DynamicMesh<'a, T> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("Mesh")
+		f.debug_struct("DynamicMesh")
 		.field("vertex_buffer", &self.vertex_buffer)
 		.field("instance_buffer", &self.instance_buffer)
 		.field("command_buffer", &self.command_buffer)
