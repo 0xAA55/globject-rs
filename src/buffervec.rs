@@ -10,18 +10,17 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-pub struct ArrayBuffer<'a> {
+pub struct BufferVec<'a> {
 	pub glcore: &'a GLCore,
 	buffer: Buffer<'a>,
 }
 
-pub trait ArrayBufferItem: Copy + Sized + Default + Debug {}
-impl<T> ArrayBufferItem for T where T: Copy + Sized + Default + Debug {}
+pub trait BufferVecItem: Copy + Sized + Default + Debug {}
+impl<T> BufferVecItem for T where T: Copy + Sized + Default + Debug {}
 
-impl<'a> ArrayBuffer<'a> {
-	/// Convert `Buffer` to an `ArrayBuffer`
-	pub fn new(glcore: &'a GLCore, mut buffer: Buffer<'a>) -> Self {
-		buffer.set_target(BufferTarget::ArrayBuffer);
+impl<'a> BufferVec<'a> {
+	/// Convert `Buffer` to an `BufferVec`
+	pub fn new(glcore: &'a GLCore, buffer: Buffer<'a>) -> Self {
 		Self {
 			glcore,
 			buffer,
@@ -34,7 +33,7 @@ impl<'a> ArrayBuffer<'a> {
 	}
 
 	/// Resize (reallocate) the buffer
-	pub fn resize<T: ArrayBufferItem>(&'a mut self, new_len: usize, value: T) {
+	pub fn resize<T: BufferVecItem>(&'a mut self, new_len: usize, value: T) {
 		self.buffer.resize(new_len, value)
 	}
 
@@ -44,7 +43,7 @@ impl<'a> ArrayBuffer<'a> {
 	}
 
 	/// Retrieve data from GPU
-	pub fn get_data<T: ArrayBufferItem>(&self, index: usize) -> T {
+	pub fn get_data<T: BufferVecItem>(&self, index: usize) -> T {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
 		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly);
@@ -55,7 +54,7 @@ impl<'a> ArrayBuffer<'a> {
 	}
 
 	/// Update data to GPU
-	pub fn set_data<T: ArrayBufferItem>(&mut self, index: usize, data: &T) {
+	pub fn set_data<T: BufferVecItem>(&mut self, index: usize, data: &T) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
 		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly);
@@ -67,7 +66,7 @@ impl<'a> ArrayBuffer<'a> {
 	}
 
 	/// Retrieve multiple data from GPU
-	pub fn get_multi_data<T: ArrayBufferItem>(&self, index: usize, data: &mut [T]) {
+	pub fn get_multi_data<T: BufferVecItem>(&self, index: usize, data: &mut [T]) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
 		let (map, addr) = bind.map_ranged(offset, size_of::<T>() * data.len(), MapAccess::WriteOnly);
@@ -79,7 +78,7 @@ impl<'a> ArrayBuffer<'a> {
 	}
 
 	/// Update multiple data to GPU
-	pub fn set_multi_data<T: ArrayBufferItem>(&mut self, index: usize, data: &[T]) {
+	pub fn set_multi_data<T: BufferVecItem>(&mut self, index: usize, data: &[T]) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
 		let (map, addr) = bind.map_ranged(offset, size_of::<T>() * data.len(), MapAccess::WriteOnly);
@@ -91,15 +90,15 @@ impl<'a> ArrayBuffer<'a> {
 	}
 }
 
-impl<'a> Into<Buffer<'a>> for ArrayBuffer<'a> {
+impl<'a> Into<Buffer<'a>> for BufferVec<'a> {
 	fn into(self) -> Buffer<'a> {
 		self.buffer
 	}
 }
 
-impl<'a> Into<ArrayBuffer<'a>> for Buffer<'a> {
-	fn into(self) -> ArrayBuffer<'a> {
-		ArrayBuffer {
+impl<'a> Into<BufferVec<'a>> for Buffer<'a> {
+	fn into(self) -> BufferVec<'a> {
+		BufferVec {
 			glcore: self.glcore,
 			buffer: self,
 		}
@@ -107,9 +106,9 @@ impl<'a> Into<ArrayBuffer<'a>> for Buffer<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ArrayBufferDynamic<'a, T: ArrayBufferItem> {
+pub struct BufferVecDynamic<'a, T: BufferVecItem> {
 	pub glcore: &'a GLCore,
-	buffer: ArrayBuffer<'a>,
+	buffer: BufferVec<'a>,
 	num_items: usize,
 	capacity: usize,
 	cache: Vec<T>,
@@ -117,9 +116,9 @@ pub struct ArrayBufferDynamic<'a, T: ArrayBufferItem> {
 	cache_modified: bool,
 }
 
-impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
-	/// Convert an `ArrayBuffer` to the `ArrayBufferDynamic`
-	pub fn new(buffer: ArrayBuffer<'a>, num_items: usize) -> Self {
+impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
+	/// Convert an `BufferVec` to the `BufferVecDynamic`
+	pub fn new(buffer: BufferVec<'a>, num_items: usize) -> Self {
 		let capacity = buffer.size() / size_of::<T>();
 		let mut cache_modified_bitmap = BitVec::new();
 		let mut cache = Vec::new();
@@ -219,41 +218,41 @@ impl<'a, T: ArrayBufferItem> ArrayBufferDynamic<'a, T> {
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Into<ArrayBufferDynamic<'a, T>> for ArrayBuffer<'a> {
-	fn into(self) -> ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Into<BufferVecDynamic<'a, T>> for BufferVec<'a> {
+	fn into(self) -> BufferVecDynamic<'a, T> {
 		let num_items = self.buffer.size() / size_of::<T>();
-		ArrayBufferDynamic::new(self, num_items)
+		BufferVecDynamic::new(self, num_items)
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Into<ArrayBuffer<'a>> for ArrayBufferDynamic<'a, T> {
-	fn into(mut self) -> ArrayBuffer<'a> {
+impl<'a, T: BufferVecItem> Into<BufferVec<'a>> for BufferVecDynamic<'a, T> {
+	fn into(mut self) -> BufferVec<'a> {
 		self.flush();
 		self.buffer
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Into<Buffer<'a>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Into<Buffer<'a>> for BufferVecDynamic<'a, T> {
 	fn into(self) -> Buffer<'a> {
 		self.buffer.into()
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Into<ArrayBufferDynamic<'a, T>> for Buffer<'a> {
-	fn into(self) -> ArrayBufferDynamic<'a, T> {
-		let ab: ArrayBuffer = self.into();
+impl<'a, T: BufferVecItem> Into<BufferVecDynamic<'a, T>> for Buffer<'a> {
+	fn into(self) -> BufferVecDynamic<'a, T> {
+		let ab: BufferVec = self.into();
 		ab.into()
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Index<usize> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Index<usize> for BufferVecDynamic<'a, T> {
 	type Output = T;
 	fn index(&self, i: usize) -> &T {
 		&self.cache[i]
 	}
 }
 
-impl<'a, T: ArrayBufferItem> IndexMut<usize> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> IndexMut<usize> for BufferVecDynamic<'a, T> {
 	fn index_mut(&mut self, i: usize) -> &mut T {
 		self.cache_modified = true;
 		self.cache_modified_bitmap.set(i, true);
@@ -261,14 +260,14 @@ impl<'a, T: ArrayBufferItem> IndexMut<usize> for ArrayBufferDynamic<'a, T> {
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Index<Range<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Index<Range<usize>> for BufferVecDynamic<'a, T> {
 	type Output = [T];
 	fn index(&self, r: Range<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: ArrayBufferItem> IndexMut<Range<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> IndexMut<Range<usize>> for BufferVecDynamic<'a, T> {
 	fn index_mut(&mut self, r: Range<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in r.start..r.end {
@@ -278,14 +277,14 @@ impl<'a, T: ArrayBufferItem> IndexMut<Range<usize>> for ArrayBufferDynamic<'a, T
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Index<RangeFrom<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Index<RangeFrom<usize>> for BufferVecDynamic<'a, T> {
 	type Output = [T];
 	fn index(&self, r: RangeFrom<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: ArrayBufferItem> IndexMut<RangeFrom<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> IndexMut<RangeFrom<usize>> for BufferVecDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeFrom<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in r.start..self.num_items {
@@ -295,14 +294,14 @@ impl<'a, T: ArrayBufferItem> IndexMut<RangeFrom<usize>> for ArrayBufferDynamic<'
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Index<RangeTo<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Index<RangeTo<usize>> for BufferVecDynamic<'a, T> {
 	type Output = [T];
 	fn index(&self, r: RangeTo<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: ArrayBufferItem> IndexMut<RangeTo<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> IndexMut<RangeTo<usize>> for BufferVecDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeTo<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in 0..r.end {
@@ -312,14 +311,14 @@ impl<'a, T: ArrayBufferItem> IndexMut<RangeTo<usize>> for ArrayBufferDynamic<'a,
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Index<RangeFull> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Index<RangeFull> for BufferVecDynamic<'a, T> {
 	type Output = [T];
 	fn index(&self, r: RangeFull) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: ArrayBufferItem> IndexMut<RangeFull> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> IndexMut<RangeFull> for BufferVecDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeFull) -> &mut [T] {
 		self.cache_modified = true;
 		for i in 0..self.num_items {
@@ -329,14 +328,14 @@ impl<'a, T: ArrayBufferItem> IndexMut<RangeFull> for ArrayBufferDynamic<'a, T> {
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Index<RangeInclusive<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Index<RangeInclusive<usize>> for BufferVecDynamic<'a, T> {
 	type Output = [T];
 	fn index(&self, r: RangeInclusive<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: ArrayBufferItem> IndexMut<RangeInclusive<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> IndexMut<RangeInclusive<usize>> for BufferVecDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeInclusive<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in *r.start()..=*r.end() {
@@ -346,14 +345,14 @@ impl<'a, T: ArrayBufferItem> IndexMut<RangeInclusive<usize>> for ArrayBufferDyna
 	}
 }
 
-impl<'a, T: ArrayBufferItem> Index<RangeToInclusive<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> Index<RangeToInclusive<usize>> for BufferVecDynamic<'a, T> {
 	type Output = [T];
 	fn index(&self, r: RangeToInclusive<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: ArrayBufferItem> IndexMut<RangeToInclusive<usize>> for ArrayBufferDynamic<'a, T> {
+impl<'a, T: BufferVecItem> IndexMut<RangeToInclusive<usize>> for BufferVecDynamic<'a, T> {
 	fn index_mut(&mut self, r: RangeToInclusive<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in 0..=r.end {
