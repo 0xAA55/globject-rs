@@ -5,7 +5,7 @@ use crate::glbuffer::*;
 use bitvec::vec::BitVec;
 use std::{
 	fmt::Debug,
-	mem::size_of,
+	mem::{size_of, size_of_val},
 	ops::{Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
 };
 
@@ -69,10 +69,10 @@ impl<'a> BufferVec<'a> {
 	pub fn get_multi_data<T: BufferVecItem>(&self, index: usize, data: &mut [T]) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
-		let (map, addr) = bind.map_ranged(offset, size_of::<T>() * data.len(), MapAccess::WriteOnly);
+		let (map, addr) = bind.map_ranged(offset, size_of_val(data), MapAccess::WriteOnly);
 		let addr = addr as *mut T;
-		for i in 0..data.len() {
-			unsafe { data[i] = *addr.wrapping_add(i); };
+		for (i, item) in data.iter_mut().enumerate() {
+			unsafe { *item = *addr.wrapping_add(i); };
 		}
 		map.unmap();
 	}
@@ -81,10 +81,10 @@ impl<'a> BufferVec<'a> {
 	pub fn set_multi_data<T: BufferVecItem>(&mut self, index: usize, data: &[T]) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
-		let (map, addr) = bind.map_ranged(offset, size_of::<T>() * data.len(), MapAccess::WriteOnly);
+		let (map, addr) = bind.map_ranged(offset, size_of_val(data), MapAccess::WriteOnly);
 		let addr = addr as *mut T;
-		for i in 0..data.len() {
-			unsafe { *addr.wrapping_add(i) = data[i]; };
+		for (i, item) in data.iter().enumerate() {
+			unsafe { *addr.wrapping_add(i) = *item; };
 		}
 		map.unmap();
 	}
@@ -105,17 +105,17 @@ impl<'a> BufferVec<'a> {
 	}
 }
 
-impl<'a> Into<Buffer<'a>> for BufferVec<'a> {
-	fn into(self) -> Buffer<'a> {
-		self.buffer
+impl<'a> From<BufferVec<'a>> for Buffer<'a> {
+	fn from(val: BufferVec<'a>) -> Self {
+		val.buffer
 	}
 }
 
-impl<'a> Into<BufferVec<'a>> for Buffer<'a> {
-	fn into(self) -> BufferVec<'a> {
+impl<'a> From<Buffer<'a>> for BufferVec<'a> {
+	fn from(val: Buffer<'a>) -> Self {
 		BufferVec {
-			glcore: self.glcore,
-			buffer: self,
+			glcore: val.glcore,
+			buffer: val,
 		}
 	}
 }
@@ -156,6 +156,11 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 		self.num_items
 	}
 
+	/// Check if the buffer is empty
+	pub fn is_empty(&self) -> bool {
+		self.num_items == 0
+	}
+
 	/// Get the capacity of the current buffer
 	pub fn capacity(&self) -> usize {
 		self.capacity
@@ -163,7 +168,7 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 
 	/// Get the buffer
 	pub fn get_buffer(&self) -> &Buffer {
-		&self.buffer.get_buffer()
+		self.buffer.get_buffer()
 	}
 
 	/// Resizes to the new size, reallocate the buffer if the new size is larger.
@@ -195,7 +200,7 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 
 	/// Commit all changes to the buffer to OpenGL Buffer Object
 	pub fn flush(&mut self) {
-		if self.cache_modified == false {
+		if !self.cache_modified {
 			return;
 		}
 
@@ -214,16 +219,14 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 				gap_length = 0;
 				end_index = i;
 				self.cache_modified_bitmap.set(i, false);
-			} else {
-				if is_in {
-					if gap_length < MAXIMUM_GAP {
+			} else if is_in {
+   					if gap_length < MAXIMUM_GAP {
 						gap_length += 1;
 					} else {
 						self.buffer.set_multi_data(0, &self.cache[start_index..=end_index]);
 						is_in = false;
 					}
 				}
-			}
 		}
 		if is_in {
 			self.buffer.set_multi_data(0, &self.cache[start_index..=end_index]);
@@ -248,29 +251,29 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 	}
 }
 
-impl<'a, T: BufferVecItem> Into<BufferVecDynamic<'a, T>> for BufferVec<'a> {
-	fn into(self) -> BufferVecDynamic<'a, T> {
-		let num_items = self.buffer.size() / size_of::<T>();
-		BufferVecDynamic::new(self, num_items)
+impl<'a, T: BufferVecItem> From<BufferVec<'a>> for BufferVecDynamic<'a, T> {
+	fn from(val: BufferVec<'a>) -> Self {
+		let num_items = val.buffer.size() / size_of::<T>();
+		BufferVecDynamic::new(val, num_items)
 	}
 }
 
-impl<'a, T: BufferVecItem> Into<BufferVec<'a>> for BufferVecDynamic<'a, T> {
-	fn into(mut self) -> BufferVec<'a> {
-		self.flush();
-		self.buffer
+impl<'a, T: BufferVecItem> From<BufferVecDynamic<'a, T>> for BufferVec<'a> {
+	fn from(mut val: BufferVecDynamic<'a, T>) -> Self {
+		val.flush();
+		val.buffer
 	}
 }
 
-impl<'a, T: BufferVecItem> Into<Buffer<'a>> for BufferVecDynamic<'a, T> {
-	fn into(self) -> Buffer<'a> {
-		self.buffer.into()
+impl<'a, T: BufferVecItem> From<BufferVecDynamic<'a, T>> for Buffer<'a> {
+	fn from(val: BufferVecDynamic<'a, T>) -> Self {
+		val.buffer.into()
 	}
 }
 
-impl<'a, T: BufferVecItem> Into<BufferVecDynamic<'a, T>> for Buffer<'a> {
-	fn into(self) -> BufferVecDynamic<'a, T> {
-		let ab: BufferVec = self.into();
+impl<'a, T: BufferVecItem> From<Buffer<'a>> for BufferVecDynamic<'a, T> {
+	fn from(val: Buffer<'a>) -> Self {
+		let ab: BufferVec = val.into();
 		ab.into()
 	}
 }

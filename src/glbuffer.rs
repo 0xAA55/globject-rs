@@ -135,7 +135,7 @@ impl<'a> Buffer<'a> {
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
 	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b> {
-		BufferBind::new(&*self, self.target)
+		BufferBind::new(self, self.target)
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
@@ -198,12 +198,12 @@ impl<'a, 'b> BufferBind<'a, 'b> {
 
 	/// Create a `BufferMapping` to use the RAII system to manage the mapping state.
 	pub fn map(&self, access: MapAccess) -> (BufferMapping<'a, 'b>, *mut c_void) {
-		BufferMapping::new(&self.buffer, self.target, access)
+		BufferMapping::new(self.buffer, self.target, access)
 	}
 
 	/// Create a `BufferMapping` to use the RAII system to manage the mapping state, with partially mapped range.
 	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> (BufferMapping<'a, 'b>, *mut c_void) {
-		BufferMapping::new_ranged(&self.buffer, self.target, offset, length, access)
+		BufferMapping::new_ranged(self.buffer, self.target, offset, length, access)
 	}
 
 	/// Get the binding target

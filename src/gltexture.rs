@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(clippy::too_many_arguments)]
 
 use glcore::*;
 use crate::glbuffer::*;
@@ -275,8 +276,7 @@ impl<'a> PixelBuffer<'a> {
 
 	/// Get the size for each pixel
 	pub fn size_of_pixel(format: PixelFormat, format_type: ComponentType) -> usize {
-		let component_len;
-		match format_type {
+		let component_len = match format_type {
 			ComponentType::U8_332 |
 			ComponentType::U8_233Rev => return 1,
 			ComponentType::U16_565 |
@@ -290,19 +290,19 @@ impl<'a> PixelBuffer<'a> {
 			ComponentType::U32_10_10_10_2 |
 			ComponentType::U32_2_10_10_10Rev => return 4,
 			ComponentType::U8 |
-			ComponentType::I8 => component_len = 1,
+			ComponentType::I8 => 1,
 			ComponentType::U16 |
 			ComponentType::I16 |
-			ComponentType::F16 => component_len = 2,
+			ComponentType::F16 => 2,
 			ComponentType::U32 |
 			ComponentType::I32 |
-			ComponentType::F32 => component_len = 4,
-		}
+			ComponentType::F32 => 4,
+		};
 		match format {
 			PixelFormat::Red |
 			PixelFormat::RedInteger |
 			PixelFormat::StencilIndex |
-			PixelFormat::Depth => component_len * 1,
+			PixelFormat::Depth => component_len,
 			PixelFormat::Rg |
 			PixelFormat::RgInteger |
 			PixelFormat::DepthStencil => component_len * 2,
@@ -347,7 +347,6 @@ impl<'a> Texture<'a> {
 		) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenTextures(1, &mut name as *mut _);
-		let pixel_bits;
 		let target;
 		let size_mod;
 		match dim {
@@ -391,7 +390,7 @@ impl<'a> Texture<'a> {
 		}
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MAG_FILTER, mag_filter as i32);
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MIN_FILTER, min_filter as i32);
-		pixel_bits = format.bits_of_pixel(glcore, target);
+		let pixel_bits = format.bits_of_pixel(glcore, target);
 		let pitch = ((pixel_bits - 1) / 32 + 1) * 4;
 		let bytes_of_face = pitch * height as usize * depth as usize;
 		let bytes_of_texture = bytes_of_face * size_mod;
@@ -604,7 +603,7 @@ impl<'a> Texture<'a> {
 		let buffer_format = pixel_buffer.format;
 		let buffer_format_type = pixel_buffer.format_type;
 		let bind_pbo = pixel_buffer.bind();
-		self.download_texture(0 as *mut c_void, buffer_format, buffer_format_type);
+		self.download_texture(std::ptr::null_mut::<c_void>(), buffer_format, buffer_format_type);
 		bind_pbo.unbind();
 	}
 
