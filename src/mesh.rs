@@ -162,7 +162,7 @@ impl<'a, T: BufferVecItem> Debug for DynamicMesh<'a, T> {
 	}
 }
 
-pub trait Mesh {
+pub trait Mesh: Debug {
 	fn get_glcore(&self) -> &GLCore;
 	fn get_vertex_buffer(&self) -> &Buffer;
 	fn get_instance_buffer(&self) -> Option<&Buffer>;
