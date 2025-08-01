@@ -67,6 +67,10 @@ impl<M: Mesh> Pipeline<M> {
 		else if data.is::<DVec2>() {"DVec2"}
 		else if data.is::<DVec3>() {"DVec3"}
 		else if data.is::<DVec4>() {"DVec4"}
+		else if data.is::<BVec1>() {"BVec1"}
+		else if data.is::<BVec2>() {"BVec2"}
+		else if data.is::<BVec3>() {"BVec3"}
+		else if data.is::<BVec4>() {"BVec4"}
 		else if data.is::<IVec1>() {"IVec1"}
 		else if data.is::<IVec2>() {"IVec2"}
 		else if data.is::<IVec3>() {"IVec3"}
@@ -107,10 +111,6 @@ impl<M: Mesh> Pipeline<M> {
 		else if data.is::<U64Vec2>() {"U64Vec2"}
 		else if data.is::<U64Vec3>() {"U64Vec3"}
 		else if data.is::<U64Vec4>() {"U64Vec4"}
-		else if data.is::<BVec1>() {"BVec1"}
-		else if data.is::<BVec2>() {"BVec2"}
-		else if data.is::<BVec3>() {"BVec3"}
-		else if data.is::<BVec4>() {"BVec4"}
 		else if data.is::<Quat>() {"Quat"}
 		else if data.is::<DQuat>() {"DQuat"}
 		else if data.is::<Mat2>() {"Mat2"}
