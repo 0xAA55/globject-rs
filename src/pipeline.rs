@@ -48,7 +48,7 @@ impl<M: Mesh> Pipeline<M> {
 	}
 
 	pub fn get_typename_of_vertex_struct_member(data: &dyn Any) -> &str {
-		if data.is::<u8>() {"u8"}
+		     if data.is::<u8>() {"u8"}
 		else if data.is::<u16>() {"u16"}
 		else if data.is::<u32>() {"u32"}
 		else if data.is::<u64>() {"u64"}
