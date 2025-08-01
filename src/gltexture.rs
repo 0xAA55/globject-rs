@@ -328,7 +328,7 @@ impl<'a> PixelBuffer<'a> {
 }
 
 impl<'a> Texture<'a> {
-	pub fn new(glcore: &'a GLCore,
+	fn new(glcore: &'a GLCore,
 			dim: TextureDimension,
 			format: TextureFormat,
 			width: u32,
@@ -422,6 +422,75 @@ impl<'a> Texture<'a> {
 			ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap);
 		}
 		ret
+	}
+
+	/// Create an 1D texture
+	pub fn new_1d(
+	        glcore: &'a GLCore,
+	        format: TextureFormat,
+	        width: u32,
+	        wrapping_s: TextureWrapping,
+	        has_mipmap: bool,
+	        mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+			buffering: bool,
+			buffer_format: PixelFormat,
+			buffer_format_type: ComponentType
+		) -> Self {
+		Self::new(glcore, TextureDimension::Tex1d, format, width, 1, 1, wrapping_s, TextureWrapping::Repeat, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
+	}
+
+	/// Create an 2D texture
+	pub fn new_2d(
+	        glcore: &'a GLCore,
+	        format: TextureFormat,
+	        width: u32,
+	        height: u32,
+	        wrapping_s: TextureWrapping,
+	        wrapping_t: TextureWrapping,
+	        has_mipmap: bool,
+	        mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+			buffering: bool,
+			buffer_format: PixelFormat,
+			buffer_format_type: ComponentType
+		) -> Self {
+		Self::new(glcore, TextureDimension::Tex2d, format, width, height, 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
+	}
+
+	/// Create an 3D texture
+	pub fn new_3d(
+	        glcore: &'a GLCore,
+	        format: TextureFormat,
+	        width: u32,
+	        height: u32,
+	        depth: u32,
+	        wrapping_s: TextureWrapping,
+	        wrapping_t: TextureWrapping,
+	        wrapping_r: TextureWrapping,
+	        has_mipmap: bool,
+	        mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+			buffering: bool,
+			buffer_format: PixelFormat,
+			buffer_format_type: ComponentType
+		) -> Self {
+		Self::new(glcore, TextureDimension::Tex3d, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
+	}
+
+	/// Create an cube map texture
+	pub fn new_cube(
+	        glcore: &'a GLCore,
+	        format: TextureFormat,
+	        size: u32,
+	        has_mipmap: bool,
+	        mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+			buffering: bool,
+			buffer_format: PixelFormat,
+			buffer_format_type: ComponentType
+		) -> Self {
+		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
 	}
 
 	/// Bind the texture, use the RAII system to manage the binding state.
