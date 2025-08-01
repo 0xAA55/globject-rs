@@ -36,4 +36,4 @@ jobs:
     - name: Run tests
       run: |
         export DISPLAY=:99.0
-        cargo test --release --verbose
+        cargo test --release --verbose -- --nocapture
