@@ -21,6 +21,7 @@ pub enum TextureTarget {
 	Tex1d = GL_TEXTURE_1D as isize,
 	Tex2d = GL_TEXTURE_2D as isize,
 	Tex3d = GL_TEXTURE_3D as isize,
+	TexCube = GL_TEXTURE_CUBE_MAP as isize,
 	TexCubePosX = GL_TEXTURE_CUBE_MAP_POSITIVE_X as isize,
 	TexCubeNegX = GL_TEXTURE_CUBE_MAP_NEGATIVE_X as isize,
 	TexCubePosY = GL_TEXTURE_CUBE_MAP_POSITIVE_Y as isize,
@@ -366,7 +367,7 @@ impl<'a> Texture<'a> {
 				size_mod = 1;
 			}
 			TextureDimension::TexCube => {
-				target = TextureTarget::TexCubePosX;
+				target = TextureTarget::TexCube;
 				height = width;
 				depth = 1;
 				size_mod = 6;
