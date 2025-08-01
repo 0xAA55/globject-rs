@@ -88,6 +88,21 @@ impl<'a> BufferVec<'a> {
 		}
 		map.unmap();
 	}
+
+	/// Set the default binding target
+	pub fn set_target(&mut self, target: BufferTarget) {
+		self.buffer.set_target(target)
+	}
+
+	/// Create a `BufferBind` to use the RAII system to manage the binding state.
+	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b>{
+		self.buffer.bind()
+	}
+
+	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
+	pub fn bind_to<'b>(&'a mut self, target: BufferTarget) -> BufferBind<'a, 'b> {
+		self.buffer.bind_to(target)
+	}
 }
 
 impl<'a> Into<Buffer<'a>> for BufferVec<'a> {
@@ -215,6 +230,21 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 		}
 
 		self.cache_modified = false;
+	}
+
+	/// Set the default binding target
+	pub fn set_target(&mut self, target: BufferTarget) {
+		self.buffer.set_target(target)
+	}
+
+	/// Create a `BufferBind` to use the RAII system to manage the binding state.
+	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b>{
+		self.buffer.bind()
+	}
+
+	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
+	pub fn bind_to<'b>(&'a mut self, target: BufferTarget) -> BufferBind<'a, 'b> {
+		self.buffer.bind_to(target)
 	}
 }
 
