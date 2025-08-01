@@ -28,13 +28,13 @@ impl<'a> BufferVec<'a> {
 	}
 
 	/// Get the size of the buffer
-	pub fn size(&self) -> usize {
+	pub fn size_in_bytes(&self) -> usize {
 		self.buffer.size()
 	}
 
 	/// Resize (reallocate) the buffer
 	pub fn resize<T: BufferVecItem>(&'a mut self, new_len: usize, value: T) {
-		self.buffer.resize(new_len, value)
+		self.buffer.resize(new_len * size_of::<T>(), value)
 	}
 
 	/// Get the buffer
@@ -119,7 +119,7 @@ pub struct BufferVecDynamic<'a, T: BufferVecItem> {
 impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 	/// Convert an `BufferVec` to the `BufferVecDynamic`
 	pub fn new(buffer: BufferVec<'a>, num_items: usize) -> Self {
-		let capacity = buffer.size() / size_of::<T>();
+		let capacity = buffer.size_in_bytes() / size_of::<T>();
 		let mut cache_modified_bitmap = BitVec::new();
 		let mut cache = Vec::new();
 		cache_modified_bitmap.resize(capacity, false);
