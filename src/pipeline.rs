@@ -42,12 +42,12 @@ impl<M: Mesh> Pipeline<M> {
 	fn establish_pipeline<T: VertexType>(&mut self) {
 		let instance = T::default();
 		for (field_name, field_value) in instance.iter() {
-			let typename = Self::get_typename(field_value);
+			let typename = Self::get_typename_of_vertex_struct_member(field_value);
 			println!("{field_name}: {typename}");
 		}
 	}
 
-	fn get_typename(data: &dyn Any) -> &str {
+	pub fn get_typename_of_vertex_struct_member(data: &dyn Any) -> &str {
 		if data.is::<u8>() {"u8"}
 		else if data.is::<u16>() {"u16"}
 		else if data.is::<u32>() {"u32"}
