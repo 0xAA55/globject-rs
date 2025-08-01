@@ -374,7 +374,6 @@ impl<'a> Texture<'a> {
 			}
 		}
 		glcore.glBindTexture(target as u32, name);
-		pixel_bits = format.bits_of_pixel(glcore, target);
 		match dim {
 			TextureDimension::Tex1d => {
 				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_S, wrapping_s as i32);
@@ -392,16 +391,11 @@ impl<'a> Texture<'a> {
 		}
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MAG_FILTER, mag_filter as i32);
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MIN_FILTER, min_filter as i32);
+		pixel_bits = format.bits_of_pixel(glcore, target);
 		let pitch = ((pixel_bits - 1) / 32 + 1) * 4;
 		let bytes_of_face = pitch * height as usize * depth as usize;
 		let bytes_of_texture = bytes_of_face * size_mod;
-		let pixel_buffer = match buffering {
-			true => {
-				Some(PixelBuffer::new(glcore, width, height, depth, bytes_of_texture, buffer_format, buffer_format_type))
-			}
-			false => None,
-		};
-		let ret = Self {
+		let mut ret = Self {
 			glcore,
 			name,
 			dim,
@@ -414,10 +408,10 @@ impl<'a> Texture<'a> {
 			min_filter,
 			bytes_of_texture,
 			bytes_of_face,
-			pixel_buffer,
+			pixel_buffer: None,
 		};
 		if buffering {
-			ret.unpack_pixel_buffer(has_mipmap);
+			ret.create_pixel_buffer(buffer_format, buffer_format_type);
 		} else {
 			let empty_data = vec![0u8; bytes_of_texture];
 			ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap);
