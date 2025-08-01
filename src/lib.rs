@@ -45,7 +45,7 @@ mod tests {
                 Ok(glfw) => glfw,
                 Err(_) => return Err(AppError::GLFWInitErr), // Due to doc, won't return `glfw::InitError::AlreadyInitialized`
             };
-            let (mut window, events) = glfw.create_window(1024, 768, "VXL Editor", glfw::WindowMode::Windowed).ok_or(AppError::GLFWCreateWindowFailed)?;
+            let (mut window, events) = glfw.create_window(1024, 768, "GLFW Window", glfw::WindowMode::Windowed).ok_or(AppError::GLFWCreateWindowFailed)?;
             window.set_key_polling(true);
             window.make_current();
             glfw.set_swap_interval(SwapInterval::Adaptive);
