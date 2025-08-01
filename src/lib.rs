@@ -1,5 +1,6 @@
 
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 pub mod glbuffer;
 pub mod glshader;
@@ -14,7 +15,11 @@ extern crate nalgebra_glm as glm;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::gltexture::*;
+    use super::glframebuffer::*;
+    use super::buffervec::*;
+    use super::mesh::*;
+    use super::pipeline::*;
 
     use std::process::ExitCode;
     use glfw::{PWindow, Action, Context, Key, GlfwReceiver, WindowEvent, SwapInterval};
