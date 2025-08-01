@@ -17,13 +17,28 @@ extern crate nalgebra_glm as glm;
 mod tests {
     use super::gltexture::*;
     use super::glframebuffer::*;
+    use super::glshader::*;
+    use super::glbuffer::*;
     use super::buffervec::*;
     use super::mesh::*;
     use super::pipeline::*;
 
-    use std::process::ExitCode;
+    use std::{
+        ffi::c_void,
+        mem::size_of_val,
+        process::ExitCode,
+        rc::Rc,
+    };
     use glfw::{PWindow, Action, Context, Key, GlfwReceiver, WindowEvent, SwapInterval};
     use glcore::*;
+    use glm::*;
+
+    use struct_iterable::Iterable;
+
+    #[derive(Iterable, Default, Debug, Clone, Copy)]
+    pub struct MyVertex {
+        position: Vec2,
+    }
 
     #[derive(Debug)]
     enum AppError {
@@ -36,7 +51,10 @@ mod tests {
     struct AppInstance {
         window: PWindow,
         events: GlfwReceiver<(f64, WindowEvent)>,
-        glcore: GLCore,
+        glcore: Rc<GLCore>,
+        mesh: Rc<StaticMesh>,
+        shader: Rc<Shader>,
+        pipeline: Rc<Pipeline<StaticMesh>>,
     }
 
     impl AppInstance {
@@ -49,11 +67,46 @@ mod tests {
             window.set_key_polling(true);
             window.make_current();
             glfw.set_swap_interval(SwapInterval::Adaptive);
-            let glcore = GLCore::new(|proc_name|window.get_proc_address(proc_name));
+            let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
+            let vertices = [
+                MyVertex{position: Vec2::new(0.0, 0.0)},
+                MyVertex{position: Vec2::new(1.0, 0.0)},
+                MyVertex{position: Vec2::new(0.0, 1.0)},
+                MyVertex{position: Vec2::new(1.0, 1.0)},
+            ];
+            let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void);
+            let mesh = Rc::new(StaticMesh::new(glcore.clone(), vertex_buffer, None, None, None));
+            let shader = Rc::new(Shader::new(glcore.clone(),
+                Some("
+                    #version 330\n
+
+                    in vec2 position;
+
+                    void main()
+                    {
+                        gl_Position = vec4(position, 0.0, 1.0);
+                    }
+                "),
+                None,
+                Some("
+                    #version 330\n
+
+                    out vec4 Color;
+
+                    void main()
+                    {
+                        Color = vec4(0.0, 0.5, 0.8, 1.0);
+                    }
+                ")
+            ).unwrap());
+            let pipeline = Rc::new(Pipeline::new::<MyVertex>(glcore.clone(), mesh.clone(), None, shader.clone()));
             Ok(Self {
                 window,
                 events,
                 glcore,
+                mesh,
+                shader,
+                pipeline,
             })
         }
 
