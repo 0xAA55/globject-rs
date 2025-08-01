@@ -8,20 +8,21 @@ use std::{
 	fmt::Debug,
 	mem::{size_of, size_of_val},
 	ops::{Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
+	rc::Rc,
 };
 
 #[derive(Debug, Clone)]
-pub struct BufferVec<'a> {
-	pub glcore: &'a GLCore,
-	buffer: Buffer<'a>,
+pub struct BufferVec {
+	pub glcore: Rc<GLCore>,
+	buffer: Buffer,
 }
 
 pub trait BufferVecItem: Copy + Sized + Default + Debug {}
 impl<T> BufferVecItem for T where T: Copy + Sized + Default + Debug {}
 
-impl<'a> BufferVec<'a> {
+impl BufferVec {
 	/// Convert `Buffer` to an `BufferVec`
-	pub fn new(glcore: &'a GLCore, buffer: Buffer<'a>) -> Self {
+	pub fn new(glcore: Rc<GLCore>, buffer: Buffer) -> Self {
 		Self {
 			glcore,
 			buffer,
@@ -34,7 +35,7 @@ impl<'a> BufferVec<'a> {
 	}
 
 	/// Resize (reallocate) the buffer
-	pub fn resize<T: BufferVecItem>(&'a mut self, new_len: usize, value: T) {
+	pub fn resize<T: BufferVecItem>(&mut self, new_len: usize, value: T) {
 		self.buffer.resize(new_len * size_of::<T>(), value)
 	}
 
@@ -96,35 +97,35 @@ impl<'a> BufferVec<'a> {
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b>{
+	pub fn bind<'a>(&'a self) -> BufferBind<'a>{
 		self.buffer.bind()
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	pub fn bind_to<'b>(&'a mut self, target: BufferTarget) -> BufferBind<'a, 'b> {
+	pub fn bind_to<'a>(&'a mut self, target: BufferTarget) -> BufferBind<'a> {
 		self.buffer.bind_to(target)
 	}
 }
 
-impl<'a> From<BufferVec<'a>> for Buffer<'a> {
-	fn from(val: BufferVec<'a>) -> Self {
+impl<'a> From<BufferVec> for Buffer {
+	fn from(val: BufferVec) -> Self {
 		val.buffer
 	}
 }
 
-impl<'a> From<Buffer<'a>> for BufferVec<'a> {
-	fn from(val: Buffer<'a>) -> Self {
+impl<'a> From<Buffer> for BufferVec {
+	fn from(val: Buffer) -> Self {
 		BufferVec {
-			glcore: val.glcore,
+			glcore: val.glcore.clone(),
 			buffer: val,
 		}
 	}
 }
 
 #[derive(Debug, Clone)]
-pub struct BufferVecDynamic<'a, T: BufferVecItem> {
-	pub glcore: &'a GLCore,
-	buffer: BufferVec<'a>,
+pub struct BufferVecDynamic<T: BufferVecItem> {
+	pub glcore: Rc<GLCore>,
+	buffer: BufferVec,
 	num_items: usize,
 	capacity: usize,
 	cache: Vec<T>,
@@ -132,9 +133,9 @@ pub struct BufferVecDynamic<'a, T: BufferVecItem> {
 	cache_modified: bool,
 }
 
-impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> BufferVecDynamic<T> {
 	/// Convert an `BufferVec` to the `BufferVecDynamic`
-	pub fn new(buffer: BufferVec<'a>, num_items: usize) -> Self {
+	pub fn new(buffer: BufferVec, num_items: usize) -> Self {
 		let capacity = buffer.size_in_bytes() / size_of::<T>();
 		let mut cache_modified_bitmap = BitVec::new();
 		let mut cache = Vec::new();
@@ -142,7 +143,7 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 		cache.resize(capacity, T::default());
 		buffer.get_multi_data(0, &mut cache);
 		Self {
-			glcore: buffer.glcore,
+			glcore: buffer.glcore.clone(),
 			buffer,
 			cache,
 			cache_modified_bitmap,
@@ -173,7 +174,7 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 	}
 
 	/// Resizes to the new size, reallocate the buffer if the new size is larger.
-	pub fn resize(&'a mut self, new_len: usize, value: T) {
+	pub fn resize(&mut self, new_len: usize, value: T) {
 		self.cache.resize(new_len, value);
 		self.num_items = new_len;
 		if new_len > self.capacity {
@@ -188,7 +189,7 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 	}
 
 	/// Reallocate the buffer to fit
-	pub fn shrink_to_fit(&'a mut self) {
+	pub fn shrink_to_fit(&mut self) {
 		if self.capacity > self.num_items {
 			self.cache.shrink_to_fit();
 			self.cache_modified_bitmap.clear(); // set all false
@@ -242,51 +243,51 @@ impl<'a, T: BufferVecItem> BufferVecDynamic<'a, T> {
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b>{
+	pub fn bind<'a>(&'a self) -> BufferBind<'a>{
 		self.buffer.bind()
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	pub fn bind_to<'b>(&'a mut self, target: BufferTarget) -> BufferBind<'a, 'b> {
+	pub fn bind_to<'a>(&'a mut self, target: BufferTarget) -> BufferBind<'a> {
 		self.buffer.bind_to(target)
 	}
 }
 
-impl<'a, T: BufferVecItem> From<BufferVec<'a>> for BufferVecDynamic<'a, T> {
-	fn from(val: BufferVec<'a>) -> Self {
+impl<T: BufferVecItem> From<BufferVec> for BufferVecDynamic<T> {
+	fn from(val: BufferVec) -> Self {
 		let num_items = val.buffer.size() / size_of::<T>();
 		BufferVecDynamic::new(val, num_items)
 	}
 }
 
-impl<'a, T: BufferVecItem> From<BufferVecDynamic<'a, T>> for BufferVec<'a> {
-	fn from(mut val: BufferVecDynamic<'a, T>) -> Self {
+impl<T: BufferVecItem> From<BufferVecDynamic<T>> for BufferVec {
+	fn from(mut val: BufferVecDynamic<T>) -> Self {
 		val.flush();
 		val.buffer
 	}
 }
 
-impl<'a, T: BufferVecItem> From<BufferVecDynamic<'a, T>> for Buffer<'a> {
-	fn from(val: BufferVecDynamic<'a, T>) -> Self {
+impl<T: BufferVecItem> From<BufferVecDynamic<T>> for Buffer {
+	fn from(val: BufferVecDynamic<T>) -> Self {
 		val.buffer.into()
 	}
 }
 
-impl<'a, T: BufferVecItem> From<Buffer<'a>> for BufferVecDynamic<'a, T> {
-	fn from(val: Buffer<'a>) -> Self {
+impl<T: BufferVecItem> From<Buffer> for BufferVecDynamic<T> {
+	fn from(val: Buffer) -> Self {
 		let ab: BufferVec = val.into();
 		ab.into()
 	}
 }
 
-impl<'a, T: BufferVecItem> Index<usize> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> Index<usize> for BufferVecDynamic<T> {
 	type Output = T;
 	fn index(&self, i: usize) -> &T {
 		&self.cache[i]
 	}
 }
 
-impl<'a, T: BufferVecItem> IndexMut<usize> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> IndexMut<usize> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, i: usize) -> &mut T {
 		self.cache_modified = true;
 		self.cache_modified_bitmap.set(i, true);
@@ -294,14 +295,14 @@ impl<'a, T: BufferVecItem> IndexMut<usize> for BufferVecDynamic<'a, T> {
 	}
 }
 
-impl<'a, T: BufferVecItem> Index<Range<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> Index<Range<usize>> for BufferVecDynamic<T> {
 	type Output = [T];
 	fn index(&self, r: Range<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: BufferVecItem> IndexMut<Range<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> IndexMut<Range<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: Range<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in r.start..r.end {
@@ -311,14 +312,14 @@ impl<'a, T: BufferVecItem> IndexMut<Range<usize>> for BufferVecDynamic<'a, T> {
 	}
 }
 
-impl<'a, T: BufferVecItem> Index<RangeFrom<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> Index<RangeFrom<usize>> for BufferVecDynamic<T> {
 	type Output = [T];
 	fn index(&self, r: RangeFrom<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: BufferVecItem> IndexMut<RangeFrom<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> IndexMut<RangeFrom<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: RangeFrom<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in r.start..self.num_items {
@@ -328,14 +329,14 @@ impl<'a, T: BufferVecItem> IndexMut<RangeFrom<usize>> for BufferVecDynamic<'a, T
 	}
 }
 
-impl<'a, T: BufferVecItem> Index<RangeTo<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> Index<RangeTo<usize>> for BufferVecDynamic<T> {
 	type Output = [T];
 	fn index(&self, r: RangeTo<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: BufferVecItem> IndexMut<RangeTo<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> IndexMut<RangeTo<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: RangeTo<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in 0..r.end {
@@ -345,14 +346,14 @@ impl<'a, T: BufferVecItem> IndexMut<RangeTo<usize>> for BufferVecDynamic<'a, T> 
 	}
 }
 
-impl<'a, T: BufferVecItem> Index<RangeFull> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> Index<RangeFull> for BufferVecDynamic<T> {
 	type Output = [T];
 	fn index(&self, r: RangeFull) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: BufferVecItem> IndexMut<RangeFull> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> IndexMut<RangeFull> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: RangeFull) -> &mut [T] {
 		self.cache_modified = true;
 		for i in 0..self.num_items {
@@ -362,14 +363,14 @@ impl<'a, T: BufferVecItem> IndexMut<RangeFull> for BufferVecDynamic<'a, T> {
 	}
 }
 
-impl<'a, T: BufferVecItem> Index<RangeInclusive<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> Index<RangeInclusive<usize>> for BufferVecDynamic<T> {
 	type Output = [T];
 	fn index(&self, r: RangeInclusive<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: BufferVecItem> IndexMut<RangeInclusive<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> IndexMut<RangeInclusive<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: RangeInclusive<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in *r.start()..=*r.end() {
@@ -379,14 +380,14 @@ impl<'a, T: BufferVecItem> IndexMut<RangeInclusive<usize>> for BufferVecDynamic<
 	}
 }
 
-impl<'a, T: BufferVecItem> Index<RangeToInclusive<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> Index<RangeToInclusive<usize>> for BufferVecDynamic<T> {
 	type Output = [T];
 	fn index(&self, r: RangeToInclusive<usize>) -> &[T] {
 		&self.cache[r]
 	}
 }
 
-impl<'a, T: BufferVecItem> IndexMut<RangeToInclusive<usize>> for BufferVecDynamic<'a, T> {
+impl<T: BufferVecItem> IndexMut<RangeToInclusive<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: RangeToInclusive<usize>) -> &mut [T] {
 		self.cache_modified = true;
 		for i in 0..=r.end {

@@ -6,37 +6,42 @@ use crate::glbuffer::*;
 use crate::glcmdbuf::*;
 use crate::buffervec::*;
 use std::{
-	fmt::{self, Debug, Formatter}
+	fmt::{self, Debug, Formatter},
+	rc::Rc,
 };
 
 #[derive(Clone)]
-pub struct StaticMesh<'a> {
-	pub glcore: &'a GLCore,
-	pub vertex_buffer: Buffer<'a>,
-	pub instance_buffer: Option<Buffer<'a>>,
-	pub command_buffer: Option<Buffer<'a>>,
+pub struct StaticMesh {
+	pub glcore: Rc<GLCore>,
+	pub vertex_buffer: Buffer,
+	pub element_buffer: Option<Buffer>,
+	pub instance_buffer: Option<Buffer>,
+	pub command_buffer: Option<Buffer>,
 }
 
 #[derive(Clone)]
-pub struct EditableMesh<'a> {
-	pub glcore: &'a GLCore,
-	pub vertex_buffer: BufferVec<'a>,
-	pub instance_buffer: Option<BufferVec<'a>>,
-	pub command_buffer: Option<BufferVec<'a>>,
+pub struct EditableMesh {
+	pub glcore: Rc<GLCore>,
+	pub vertex_buffer: BufferVec,
+	pub element_buffer: Option<BufferVec>,
+	pub instance_buffer: Option<BufferVec>,
+	pub command_buffer: Option<BufferVec>,
 }
 
 #[derive(Clone)]
-pub struct DynamicMesh<'a, T: BufferVecItem> {
-	pub glcore: &'a GLCore,
-	pub vertex_buffer: BufferVecDynamic<'a, T>,
-	pub instance_buffer: Option<BufferVecDynamic<'a, T>>,
-	pub command_buffer: Option<BufferVecDynamic<'a, DrawCommand>>,
+pub struct DynamicMesh<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> {
+	pub glcore: Rc<GLCore>,
+	pub vertex_buffer: BufferVecDynamic<T>,
+	pub element_buffer: Option<BufferVecDynamic<E>>,
+	pub instance_buffer: Option<BufferVecDynamic<I>>,
+	pub command_buffer: Option<BufferVecDynamic<DrawCommand>>,
 }
 
-impl<'a> StaticMesh<'a> {
-	pub fn new(glcore: &'a GLCore, vertex_buffer: Buffer<'a>, instance_buffer: Option<Buffer<'a>>, command_buffer: Option<Buffer<'a>>) -> Self {
+impl StaticMesh {
+	pub fn new(glcore: Rc<GLCore>, vertex_buffer: Buffer, element_buffer: Option<Buffer>, instance_buffer: Option<Buffer>, command_buffer: Option<Buffer>) -> Self {
 		Self {
 			glcore,
+			element_buffer,
 			vertex_buffer,
 			instance_buffer,
 			command_buffer,
@@ -44,118 +49,129 @@ impl<'a> StaticMesh<'a> {
 	}
 }
 
-impl<'a> EditableMesh<'a> {
-	pub fn new(glcore: &'a GLCore, vertex_buffer: BufferVec<'a>, instance_buffer: Option<BufferVec<'a>>, command_buffer: Option<BufferVec<'a>>) -> Self {
+impl EditableMesh {
+	pub fn new(glcore: Rc<GLCore>, vertex_buffer: BufferVec, element_buffer: Option<BufferVec>, instance_buffer: Option<BufferVec>, command_buffer: Option<BufferVec>) -> Self {
 		Self {
 			glcore,
 			vertex_buffer,
+			element_buffer,
 			instance_buffer,
 			command_buffer,
 		}
 	}
 }
 
-impl<'a, T: BufferVecItem> DynamicMesh<'a, T> {
-	pub fn new(glcore: &'a GLCore, vertex_buffer: BufferVecDynamic<'a, T>, instance_buffer: Option<BufferVecDynamic<'a, T>>, command_buffer: Option<BufferVecDynamic<'a, DrawCommand>>) -> Self {
+impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> DynamicMesh<T, E, I> {
+	pub fn new(glcore: Rc<GLCore>, vertex_buffer: BufferVecDynamic<T>, element_buffer: Option<BufferVecDynamic<E>>, instance_buffer: Option<BufferVecDynamic<I>>, command_buffer: Option<BufferVecDynamic<DrawCommand>>) -> Self {
 		Self {
 			glcore,
 			vertex_buffer,
+			element_buffer,
 			instance_buffer,
 			command_buffer,
 		}
 	}
 }
 
-impl<'a> From<StaticMesh<'a>> for EditableMesh<'a> {
-	fn from(val: StaticMesh<'a>) -> Self {
+impl From<StaticMesh> for EditableMesh {
+	fn from(val: StaticMesh) -> Self {
 		EditableMesh {
 			glcore: val.glcore,
 			vertex_buffer: val.vertex_buffer.into(),
+			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
 		}
 	}
 }
 
-impl<'a> From<EditableMesh<'a>> for StaticMesh<'a> {
-	fn from(val: EditableMesh<'a>) -> Self {
+impl From<EditableMesh> for StaticMesh {
+	fn from(val: EditableMesh) -> Self {
 		StaticMesh {
 			glcore: val.glcore,
 			vertex_buffer: val.vertex_buffer.into(),
+			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
 		}
 	}
 }
 
-impl<'a, T: BufferVecItem> From<StaticMesh<'a>> for DynamicMesh<'a, T> {
-	fn from(val: StaticMesh<'a>) -> Self {
+impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> From<StaticMesh> for DynamicMesh<T, E, I> {
+	fn from(val: StaticMesh) -> Self {
 		DynamicMesh {
 			glcore: val.glcore,
 			vertex_buffer: val.vertex_buffer.into(),
+			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
 		}
 	}
 }
 
-impl<'a, T: BufferVecItem> From<DynamicMesh<'a, T>> for StaticMesh<'a> {
-	fn from(val: DynamicMesh<'a, T>) -> Self {
+impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> From<DynamicMesh<T, E, I>> for StaticMesh {
+	fn from(val: DynamicMesh<T, E, I>) -> Self {
 		StaticMesh {
 			glcore: val.glcore,
 			vertex_buffer: val.vertex_buffer.into(),
+			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
 		}
 	}
 }
 
-impl<'a, T: BufferVecItem> From<DynamicMesh<'a, T>> for EditableMesh<'a> {
-	fn from(val: DynamicMesh<'a, T>) -> Self {
+impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> From<DynamicMesh<T, E, I>> for EditableMesh {
+	fn from(val: DynamicMesh<T, E, I>) -> Self {
 		EditableMesh {
 			glcore: val.glcore,
 			vertex_buffer: val.vertex_buffer.into(),
+			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
 		}
 	}
 }
 
-impl<'a, T: BufferVecItem> From<EditableMesh<'a>> for DynamicMesh<'a, T> {
-	fn from(val: EditableMesh<'a>) -> Self {
+impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> From<EditableMesh> for DynamicMesh<T, E, I> {
+	fn from(val: EditableMesh) -> Self {
 		DynamicMesh {
 			glcore: val.glcore,
 			vertex_buffer: val.vertex_buffer.into(),
+			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
 		}
 	}
 }
 
-impl<'a> Debug for StaticMesh<'a> {
+impl Debug for StaticMesh {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("StaticMesh")
 		.field("vertex_buffer", &self.vertex_buffer)
+		.field("element_buffer", &self.element_buffer)
 		.field("instance_buffer", &self.instance_buffer)
 		.field("command_buffer", &self.command_buffer)
 		.finish()
 	}
 }
 
-impl<'a> Debug for EditableMesh<'a> {
+impl Debug for EditableMesh {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("EditableMesh")
 		.field("vertex_buffer", &self.vertex_buffer)
+		.field("element_buffer", &self.element_buffer)
 		.field("instance_buffer", &self.instance_buffer)
 		.field("command_buffer", &self.command_buffer)
 		.finish()
 	}
 }
 
-impl<'a, T: BufferVecItem> Debug for DynamicMesh<'a, T> {
+impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> Debug for DynamicMesh<T, E, I> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("DynamicMesh")
 		.field("vertex_buffer", &self.vertex_buffer)
+		.field("element_buffer", &self.element_buffer)
 		.field("instance_buffer", &self.instance_buffer)
 		.field("command_buffer", &self.command_buffer)
 		.finish()
@@ -165,19 +181,28 @@ impl<'a, T: BufferVecItem> Debug for DynamicMesh<'a, T> {
 pub trait Mesh: Debug {
 	fn get_glcore(&self) -> &GLCore;
 	fn get_vertex_buffer(&self) -> &Buffer;
+	fn get_element_buffer(&self) -> Option<&Buffer>;
 	fn get_instance_buffer(&self) -> Option<&Buffer>;
 	fn get_command_buffer(&self) -> Option<&Buffer>;
 }
 
-impl Mesh for StaticMesh<'_> {
+impl Mesh for StaticMesh {
 	fn get_glcore(&self) -> &GLCore {
-		self.glcore
+		self.glcore.as_ref()
 	}
 
 	fn get_vertex_buffer(&self) -> &Buffer {
 		&self.vertex_buffer
 	}
 
+	fn get_element_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.element_buffer {
+			Some(buffer)
+		} else {
+			None
+		}
+	}
+
 	fn get_instance_buffer(&self) -> Option<&Buffer> {
 		if let Some(buffer) = &self.instance_buffer {
 			Some(buffer)
@@ -195,13 +220,21 @@ impl Mesh for StaticMesh<'_> {
 	}
 }
 
-impl Mesh for EditableMesh<'_> {
+impl Mesh for EditableMesh {
 	fn get_glcore(&self) -> &GLCore {
-		self.glcore
+		self.glcore.as_ref()
 	}
 
 	fn get_vertex_buffer(&self) -> &Buffer {
 		self.vertex_buffer.get_buffer()
+	}
+	
+	fn get_element_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.element_buffer {
+			Some(buffer.get_buffer())
+		} else {
+			None
+		}
 	}
 
 	fn get_instance_buffer(&self) -> Option<&Buffer> {
@@ -221,13 +254,21 @@ impl Mesh for EditableMesh<'_> {
 	}
 }
 
-impl<T: BufferVecItem> Mesh for DynamicMesh<'_, T> {
+impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem> Mesh for DynamicMesh<T, E, I> {
 	fn get_glcore(&self) -> &GLCore {
-		self.glcore
+		self.glcore.as_ref()
 	}
 
 	fn get_vertex_buffer(&self) -> &Buffer {
 		self.vertex_buffer.get_buffer()
+	}
+	
+	fn get_element_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.element_buffer {
+			Some(buffer.get_buffer())
+		} else {
+			None
+		}
 	}
 
 	fn get_instance_buffer(&self) -> Option<&Buffer> {

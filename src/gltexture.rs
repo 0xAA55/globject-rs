@@ -8,6 +8,7 @@ use crate::buffervec::*;
 use std::{
 	ffi::c_void,
 	fmt::{self, Debug, Formatter},
+	rc::Rc,
 };
 
 #[derive(Clone, Copy)]
@@ -188,8 +189,8 @@ pub trait PixelType: BufferVecItem {}
 impl<T> PixelType for T where T: BufferVecItem {}
 
 #[derive(Debug, Clone)]
-pub struct PixelBuffer<'a> {
-	buffer: BufferVec<'a>,
+pub struct PixelBuffer {
+	buffer: BufferVec,
 	pixel_size: usize,
 	width: u32,
 	height: u32,
@@ -200,8 +201,8 @@ pub struct PixelBuffer<'a> {
 	format_type: ComponentType,
 }
 
-pub struct Texture<'a> {
-	pub glcore: &'a GLCore,
+pub struct Texture {
+	pub glcore: Rc<GLCore>,
 	name: u32,
 	dim: TextureDimension,
 	format: TextureFormat,
@@ -213,11 +214,11 @@ pub struct Texture<'a> {
 	min_filter: SamplerFilter,
 	bytes_of_texture: usize,
 	bytes_of_face: usize,
-	pixel_buffer: Option<PixelBuffer<'a>>,
+	pixel_buffer: Option<PixelBuffer>,
 }
 
-pub struct TextureBind<'a, 'b> {
-	pub texture: &'b Texture<'a>,
+pub struct TextureBind<'a> {
+	pub texture: &'a Texture,
 	target: TextureTarget,
 }
 
@@ -242,8 +243,8 @@ impl TextureFormat {
 	}
 }
 
-impl<'a> PixelBuffer<'a> {
-	pub fn new(glcore: &'a GLCore,
+impl PixelBuffer {
+	pub fn new(glcore: Rc<GLCore>,
 			width: u32,
 			height: u32,
 			depth: u32,
@@ -255,8 +256,8 @@ impl<'a> PixelBuffer<'a> {
 		let pitch = ((width as usize * pixel_size - 1) / 4 + 1) * 4;
 		let pitch_wh = pitch * height as usize;
 		let empty_data = vec![0u8; size_in_bytes];
-		let buffer = Buffer::new(glcore, BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, empty_data.as_ptr() as *const c_void);
-		let buffer = BufferVec::new(glcore, buffer);
+		let buffer = Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, empty_data.as_ptr() as *const c_void);
+		let buffer = BufferVec::new(glcore.clone(), buffer);
 		Self {
 			buffer,
 			pixel_size,
@@ -324,13 +325,13 @@ impl<'a> PixelBuffer<'a> {
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'b>(&'a self) -> BufferBind<'a, 'b> {
+	pub fn bind<'a>(&'a self) -> BufferBind<'a> {
 		self.buffer.bind()
 	}
 }
 
-impl<'a> Texture<'a> {
-	fn new(glcore: &'a GLCore,
+impl Texture {
+	fn new(glcore: Rc<GLCore>,
 			dim: TextureDimension,
 			format: TextureFormat,
 			width: u32,
@@ -391,7 +392,7 @@ impl<'a> Texture<'a> {
 		}
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MAG_FILTER, mag_filter as i32);
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MIN_FILTER, min_filter as i32);
-		let pixel_bits = format.bits_of_pixel(glcore, target);
+		let pixel_bits = format.bits_of_pixel(glcore.as_ref(), target);
 		let pitch = ((pixel_bits - 1) / 32 + 1) * 4;
 		let bytes_of_face = pitch * height as usize * depth as usize;
 		let bytes_of_texture = bytes_of_face * size_mod;
@@ -421,7 +422,7 @@ impl<'a> Texture<'a> {
 
 	/// Create an 1D texture
 	pub fn new_1d(
-	        glcore: &'a GLCore,
+	        glcore: Rc<GLCore>,
 	        format: TextureFormat,
 	        width: u32,
 	        wrapping_s: TextureWrapping,
@@ -437,7 +438,7 @@ impl<'a> Texture<'a> {
 
 	/// Create an 2D texture
 	pub fn new_2d(
-	        glcore: &'a GLCore,
+	        glcore: Rc<GLCore>,
 	        format: TextureFormat,
 	        width: u32,
 	        height: u32,
@@ -455,7 +456,7 @@ impl<'a> Texture<'a> {
 
 	/// Create an 3D texture
 	pub fn new_3d(
-	        glcore: &'a GLCore,
+	        glcore: Rc<GLCore>,
 	        format: TextureFormat,
 	        width: u32,
 	        height: u32,
@@ -475,7 +476,7 @@ impl<'a> Texture<'a> {
 
 	/// Create an cube map texture
 	pub fn new_cube(
-	        glcore: &'a GLCore,
+	        glcore: Rc<GLCore>,
 	        format: TextureFormat,
 	        size: u32,
 	        has_mipmap: bool,
@@ -489,7 +490,7 @@ impl<'a> Texture<'a> {
 	}
 
 	/// Bind the texture, use the RAII system to manage the binding state.
-	pub fn bind<'b>(&'a self) -> TextureBind<'a, 'b> {
+	pub fn bind<'a>(&'a self) -> TextureBind<'a> {
 		match self.dim {
 			TextureDimension::Tex1d => TextureBind::new(self, TextureTarget::Tex1d),
 			TextureDimension::Tex2d => TextureBind::new(self, TextureTarget::Tex2d),
@@ -499,7 +500,7 @@ impl<'a> Texture<'a> {
 	}
 
 	/// Bind the cube map face, use the RAII system to manage the binding state.
-	pub fn bind_face<'b>(&'a self, face: CubeMapFaces) -> TextureBind<'a, 'b> {
+	pub fn bind_face<'a>(&'a self, face: CubeMapFaces) -> TextureBind<'a> {
 		match self.dim {
 			TextureDimension::TexCube => {
 				match face {
@@ -516,7 +517,7 @@ impl<'a> Texture<'a> {
 	}
 
 	/// Map the pixel buffer for the specified access
-	pub fn map_buffer<'b>(&'a mut self, access: MapAccess) -> Option<(BufferBind<'a, 'b>, BufferMapping<'a, 'b>, *mut c_void)> {
+	pub fn map_buffer<'a>(&'a mut self, access: MapAccess) -> Option<(BufferBind<'a>, BufferMapping<'a>, *mut c_void)> {
 		self.pixel_buffer.as_ref().map(|b|{
 			let bind = b.bind();
 			let (mapping, address) = bind.map(access);
@@ -620,7 +621,7 @@ impl<'a> Texture<'a> {
 
 	/// Create the PBO if not created early
 	pub fn create_pixel_buffer(&mut self, buffer_format: PixelFormat, buffer_format_type: ComponentType) {
-		self.pixel_buffer = Some(PixelBuffer::new(self.glcore, self.width, self.height, self.depth, self.bytes_of_texture, buffer_format, buffer_format_type))
+		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_format, buffer_format_type))
 	}
 
 	/// Discard the PBO if not necessarily need it
@@ -629,14 +630,14 @@ impl<'a> Texture<'a> {
 	}
 }
 
-impl Drop for Texture<'_> {
+impl Drop for Texture {
 	fn drop(&mut self) {
 		self.glcore.glDeleteTextures(1, &self.name as *const u32);
 	}
 }
 
-impl<'a, 'b> TextureBind<'a, 'b> {
-	fn new(texture: &'b Texture<'a>, target: TextureTarget) -> Self {
+impl<'a> TextureBind<'a> {
+	fn new(texture: &'a Texture, target: TextureTarget) -> Self {
 		texture.glcore.glBindTexture(target as u32, texture.name);
 		Self {
 			texture,
@@ -648,7 +649,7 @@ impl<'a, 'b> TextureBind<'a, 'b> {
 	pub fn unbind(self) {}
 }
 
-impl Drop for TextureBind<'_, '_> {
+impl Drop for TextureBind<'_> {
 	fn drop(&mut self) {
 		self.texture.glcore.glBindTexture(self.target as u32, 0);
 	}
@@ -665,7 +666,7 @@ impl Debug for TextureDimension {
 	}
 }
 
-impl Debug for Texture<'_> {
+impl Debug for Texture {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Texture")
 		.field("name", &self.name)
