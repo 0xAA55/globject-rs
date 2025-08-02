@@ -76,7 +76,7 @@ mod tests {
                 MyVertex{position: Vec2::new(1.0, 1.0)},
             ];
             let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void);
-            let mesh = Rc::new(StaticMesh::new(glcore.clone(), vertex_buffer, None, None, None));
+            let mesh = Rc::new(StaticMesh::new(glcore.clone(), PrimitiveMode::TriangleStrip, vertex_buffer, None, None, None));
             let shader = Rc::new(Shader::new(glcore.clone(),
                 Some("
                     #version 330\n
@@ -96,11 +96,11 @@ mod tests {
 
                     void main()
                     {
-                        Color = vec4(0.0, 0.6, 0.8, 1.0);
+                        Color = vec4(0.0, 0.0, 0.5, 1.0);
                     }
                 ")
             ).unwrap());
-            let pipeline = Rc::new(Pipeline::new::<MyVertex, MyVertex>(glcore.clone(), mesh.clone(), None, shader.clone()));
+            let pipeline = Rc::new(Pipeline::new::<MyVertex, MyVertex>(glcore.clone(), mesh.clone(), shader.clone()));
             Ok(Self {
                 window,
                 events,
@@ -117,6 +117,10 @@ mod tests {
                 let time_cur_frame = self.window.glfw.get_time();
                 self.glcore.glClearColor(0.0, 0.6, 0.9, 1.0);
                 self.glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                let p_bind = self.pipeline.bind();
+                p_bind.draw(None);
+                p_bind.unbind();
 
                 self.window.swap_buffers();
                 self.window.glfw.poll_events();
