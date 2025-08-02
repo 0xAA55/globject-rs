@@ -146,7 +146,11 @@ impl<M: Mesh> Pipeline<M> {
 						}
 						self.glcore.glVertexAttribDivisor(location, v_a_d);
 					}
+				} else {
+					eprintln!("Attrib `{typename} {field_name}` is active, but can't get its location.");
 				}
+			} else {
+				eprintln!("Attrib `{typename} {field_name}` is not active.");
 			}
 			cur_offset += datainfo.size_in_bytes();
 		}
