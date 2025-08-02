@@ -36,6 +36,12 @@ pub struct Shader {
 	program: u32,
 }
 
+/// The struct for monitoring using the shader
+#[derive(Debug)]
+pub struct ShaderUse<'a> {
+	pub shader: &'a Shader,
+}
+
 /// The OpenGL attrib types
 #[derive(Clone, Copy)]
 pub enum AttribType {
@@ -208,8 +214,32 @@ impl Shader {
 	}
 
 	/// Set to use the shader
-	pub fn use_(&self) {
-		self.glcore.glUseProgram(self.program)
+	pub fn use_<'a>(&'a self) -> ShaderUse<'a> {
+		ShaderUse::new(self)
+	}
+}
+
+impl<'a> ShaderUse<'a> {
+	fn new(shader: &'a Shader) -> Self {
+		shader.glcore.glUseProgram(shader.get_name());
+		Self {
+			shader,
+		}
+	}
+
+	/// Unuse the program.
+	pub fn unuse(self) {}
+}
+
+impl Drop for ShaderUse<'_> {
+	fn drop(&mut self) {
+		self.shader.glcore.glUseProgram(0)
+	}
+}
+
+impl Drop for Shader {
+	fn drop(&mut self) {
+		self.glcore.glDeleteProgram(self.program)
 	}
 }
 
@@ -273,12 +303,6 @@ impl AttribVarType {
 
 	pub fn get_type(&self) -> AttribType {
 		self.type_
-	}
-}
-
-impl Drop for Shader {
-	fn drop(&mut self) {
-		self.glcore.glDeleteProgram(self.program)
 	}
 }
 
