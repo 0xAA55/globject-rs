@@ -24,10 +24,42 @@ pub struct Pipeline<M: Mesh> {
 	pub shader: Rc<Shader>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct DataGlType {
+	data_type: u32,
+	size: u32,
+	rows: u32,
+}
 
 #[derive(Debug)]
 pub struct PipelineBind<'a, M: Mesh> {
 	pub pipeline: &'a Pipeline<M>,
+}
+
+impl DataGlType {
+	fn is_integer(&self) -> bool {
+		match self.data_type {
+			GL_BYTE | GL_SHORT | GL_INT | GL_UNSIGNED_BYTE | GL_UNSIGNED_SHORT | GL_UNSIGNED_INT => true,
+			_ => false,
+		}
+	}
+
+	fn is_double(&self) -> bool {
+		match self.data_type {
+			GL_DOUBLE => true,
+			_ => false,
+		}
+	}
+
+	fn size_in_bytes(&self) -> usize {
+		match self.data_type {
+			GL_BYTE | GL_UNSIGNED_BYTE => 1usize * self.size as usize * self.rows as usize,
+			GL_SHORT | GL_UNSIGNED_SHORT | GL_HALF_FLOAT => 2usize * self.size as usize * self.rows as usize,
+			GL_INT | GL_UNSIGNED_INT | GL_FLOAT => 4usize * self.size as usize * self.rows as usize,
+			GL_DOUBLE => 8usize * self.size as usize * self.rows as usize,
+			other => panic!("Invalid `data_type` ({other})"),
+		}
+	}
 }
 
 impl<M: Mesh> Pipeline<M> {
@@ -64,6 +96,74 @@ impl<M: Mesh> Pipeline<M> {
 		PipelineBind::new(self)
 	}
 
+	fn get_vertex_struct_member_gltype(member_type: &str) -> DataGlType {
+		match member_type {
+			"i8" => return DataGlType{data_type: GL_BYTE, size: 1, rows: 1},
+			"i16" => return DataGlType{data_type: GL_SHORT, size: 1, rows: 1},
+			"i32" => return DataGlType{data_type: GL_INT, size: 1, rows: 1},
+			"u8" => return DataGlType{data_type: GL_UNSIGNED_BYTE, size: 1, rows: 1},
+			"u16" => return DataGlType{data_type: GL_UNSIGNED_SHORT, size: 1, rows: 1},
+			"u32" => return DataGlType{data_type: GL_UNSIGNED_INT, size: 1, rows: 1},
+			"f16" => return DataGlType{data_type: GL_HALF_FLOAT, size: 1, rows: 1},
+			"f32" => return DataGlType{data_type: GL_FLOAT, size: 1, rows: 1},
+			"f64" => return DataGlType{data_type: GL_DOUBLE, size: 1, rows: 1},
+			_ => {
+				if member_type.contains("Vec") {
+					let data_type =
+					     if member_type.starts_with("U32") {GL_UNSIGNED_INT}
+					else if member_type.starts_with("U16") {GL_UNSIGNED_SHORT}
+					else if member_type.starts_with("U8")  {GL_UNSIGNED_BYTE}
+					else if member_type.starts_with("I32") {GL_INT}
+					else if member_type.starts_with("I16") {GL_SHORT}
+					else if member_type.starts_with("I8")  {GL_BYTE}
+					else {
+						match member_type.chars().next().unwrap() {
+							'V' => GL_FLOAT,
+							'D' => GL_DOUBLE,
+							'B' => GL_BYTE,
+							'I' => GL_INT,
+							'U' => GL_UNSIGNED_INT,
+							_ => panic!("Unsupported type of member: `{member_type}`"),
+						}
+					};
+					let size = u32::from(member_type.chars().last().unwrap());
+					DataGlType{data_type, size, rows: 1}
+				} else if member_type.contains("Mat") {
+					let data_type = if member_type.starts_with("D") {
+						GL_DOUBLE
+					} else {
+						GL_FLOAT
+					};
+					let (size, rows) =
+					     if member_type.ends_with("2x2") {(2, 2)}
+					else if member_type.ends_with("2x3") {(2, 3)}
+					else if member_type.ends_with("2x4") {(2, 4)}
+					else if member_type.ends_with("3x2") {(3, 2)}
+					else if member_type.ends_with("3x3") {(3, 3)}
+					else if member_type.ends_with("3x4") {(3, 4)}
+					else if member_type.ends_with("4x2") {(4, 2)}
+					else if member_type.ends_with("4x3") {(4, 3)}
+					else if member_type.ends_with("4x4") {(4, 4)}
+					else {
+						match member_type.chars().last().unwrap() {
+							'2' => (2, 2),
+							'3' => (3, 3),
+							'4' => (4, 4),
+							_ => panic!("Unsupported type of member: `{member_type}`"),
+						}
+					};
+					DataGlType{data_type, size, rows}
+				} else if member_type.contains("Quat") {
+					let data_type = if member_type.starts_with("D") {
+						GL_DOUBLE
+					} else {
+						GL_FLOAT
+					};
+					DataGlType{data_type, size: 4, rows: 1}
+				} else {
+					panic!("Unsupported type of member: `{member_type}`")
+				}
+			}
 		}
 	}
 
