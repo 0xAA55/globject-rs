@@ -16,9 +16,10 @@ use std::{
 };
 use half::f16;
 use glm::*;
+use zerocopy::Unaligned;
 
-pub trait VertexType: Copy + Clone + Sized + Default + Debug + Iterable {}
-impl<T> VertexType for T where T: Copy + Clone + Sized + Default + Debug + Iterable {}
+pub trait VertexType: Copy + Clone + Sized + Default + Debug + Iterable + Unaligned {}
+impl<T> VertexType for T where T: Copy + Clone + Sized + Default + Debug + Iterable + Unaligned {}
 
 pub struct Pipeline<M: Mesh> {
 	pub glcore: Rc<GLCore>,
