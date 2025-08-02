@@ -33,6 +33,30 @@ pub enum ElementType {
 	U32 = GL_UNSIGNED_INT as isize,
 }
 
+#[derive(Debug, Clone)]
+pub struct ElementBuffer {
+	pub buffer: Buffer,
+	pub element_type: ElementType,
+}
+
+#[derive(Debug, Clone)]
+pub struct ElementBufferVec {
+	pub buffer: BufferVec,
+	pub element_type: ElementType,
+}
+
+#[derive(Debug, Clone)]
+pub struct ElementBufferVecDynamic<T: BufferVecItem> {
+	pub buffer: BufferVecDynamic<T>,
+	pub element_type: ElementType,
+}
+
+#[derive(Debug, Clone)]
+pub struct ElementBufferRef<'a> {
+	pub buffer: &'a Buffer,
+	pub element_type: ElementType,
+}
+
 #[derive(Clone)]
 pub struct StaticMesh {
 	pub glcore: Rc<GLCore>,
