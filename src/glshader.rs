@@ -1,10 +1,14 @@
 
 #![allow(dead_code)]
+#![allow(non_upper_case_globals)]
 
 use glcore::*;
 use std::{
-	fmt::{self, Debug, Formatter},
+	collections::BTreeMap,
+	fmt::{self, Debug, Display, Formatter},
+	mem::transmute,
 	rc::Rc,
+	string::FromUtf8Error,
 };
 
 /// Error produced from the shader
@@ -176,6 +180,26 @@ impl Shader {
 			glcore,
 			program,
 		})
+	}
+
+	/// Get all of the active attributes of the shader
+	pub fn get_active_attribs(&self) -> Result<BTreeMap<String, AttribVarType>, FromUtf8Error> {
+		let mut num_attrib: i32 = 0;
+		let mut max_length: i32 = 0;
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTES, &mut num_attrib as *mut _);
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &mut max_length as *mut _);
+
+		let mut ret = BTreeMap::<String, AttribVarType>::new();
+		for i in 0..num_attrib {
+			let mut name = vec![0i8; max_length as usize];
+			let mut size: i32 = 0;
+			let mut type_: u32 = 0;
+			self.glcore.glGetActiveAttrib(self.program, i as u32, max_length, 0 as *mut i32, &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
+			let name = String::from_utf8(unsafe{transmute(name)})?;
+			let type_ = AttribType::from(type_);
+			ret.insert(name, AttribVarType{type_, size});
+		}
+		Ok(ret)
 	}
 
 	/// Set to use the shader
