@@ -32,6 +32,51 @@ pub struct Shader {
 	program: u32,
 }
 
+/// The OpenGL attrib types
+#[derive(Clone, Copy)]
+pub enum AttribType {
+	Float = GL_FLOAT as isize,
+	Vec2 = GL_FLOAT_VEC2 as isize,
+	Vec3 = GL_FLOAT_VEC3 as isize,
+	Vec4 = GL_FLOAT_VEC4 as isize,
+	Mat2 = GL_FLOAT_MAT2 as isize,
+	Mat3 = GL_FLOAT_MAT3 as isize,
+	Mat4 = GL_FLOAT_MAT4 as isize,
+	Mat2x3 = GL_FLOAT_MAT2x3 as isize,
+	Mat2x4 = GL_FLOAT_MAT2x4 as isize,
+	Mat3x2 = GL_FLOAT_MAT3x2 as isize,
+	Mat3x4 = GL_FLOAT_MAT3x4 as isize,
+	Mat4x2 = GL_FLOAT_MAT4x2 as isize,
+	Mat4x3 = GL_FLOAT_MAT4x3 as isize,
+	Int = GL_INT as isize,
+	IVec2 = GL_INT_VEC2 as isize,
+	IVec3 = GL_INT_VEC3 as isize,
+	IVec4 = GL_INT_VEC4 as isize,
+	UInt = GL_UNSIGNED_INT as isize,
+	UVec2 = GL_UNSIGNED_INT_VEC2 as isize,
+	UVec3 = GL_UNSIGNED_INT_VEC3 as isize,
+	UVec4 = GL_UNSIGNED_INT_VEC4 as isize,
+	Double = GL_DOUBLE as isize,
+	DVec2 = GL_DOUBLE_VEC2 as isize,
+	DVec3 = GL_DOUBLE_VEC3 as isize,
+	DVec4 = GL_DOUBLE_VEC4 as isize,
+	DMat2 = GL_DOUBLE_MAT2 as isize,
+	DMat3 = GL_DOUBLE_MAT3 as isize,
+	DMat4 = GL_DOUBLE_MAT4 as isize,
+	DMat2x3 = GL_DOUBLE_MAT2x3 as isize,
+	DMat2x4 = GL_DOUBLE_MAT2x4 as isize,
+	DMat3x2 = GL_DOUBLE_MAT3x2 as isize,
+	DMat3x4 = GL_DOUBLE_MAT3x4 as isize,
+	DMat4x2 = GL_DOUBLE_MAT4x2 as isize,
+	DMat4x3 = GL_DOUBLE_MAT4x3 as isize,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AttribVarType {
+	pub type_: AttribType,
+	pub size: i32,
+}
+
 impl Shader {
 	/// Compile a shader, returns the compiled shader object or the compiler info log
 	fn compile_shader(glcore: &GLCore, shader_type: u32, shader_source: &str) -> Result<u32, String> {
@@ -162,5 +207,94 @@ impl Debug for ShaderError {
 			Self::CSError(infolog) => write!(f, "Compute Shader Error:\n{infolog}"),
 			Self::LinkageError(infolog) => write!(f, "Shader Linkage Error:\n{infolog}"),
 		}
+	}
+}
+
+impl From<u32> for AttribType {
+	fn from(val: u32) -> Self {
+		match val {
+			GL_FLOAT => Self::Float,
+			GL_FLOAT_VEC2 => Self::Vec2,
+			GL_FLOAT_VEC3 => Self::Vec3,
+			GL_FLOAT_VEC4 => Self::Vec4,
+			GL_FLOAT_MAT2 => Self::Mat2,
+			GL_FLOAT_MAT3 => Self::Mat3,
+			GL_FLOAT_MAT4 => Self::Mat4,
+			GL_FLOAT_MAT2x3 => Self::Mat2x3,
+			GL_FLOAT_MAT2x4 => Self::Mat2x4,
+			GL_FLOAT_MAT3x2 => Self::Mat3x2,
+			GL_FLOAT_MAT3x4 => Self::Mat3x4,
+			GL_FLOAT_MAT4x2 => Self::Mat4x2,
+			GL_FLOAT_MAT4x3 => Self::Mat4x3,
+			GL_INT => Self::Int,
+			GL_INT_VEC2 => Self::IVec2,
+			GL_INT_VEC3 => Self::IVec3,
+			GL_INT_VEC4 => Self::IVec4,
+			GL_UNSIGNED_INT => Self::UInt,
+			GL_UNSIGNED_INT_VEC2 => Self::UVec2,
+			GL_UNSIGNED_INT_VEC3 => Self::UVec3,
+			GL_UNSIGNED_INT_VEC4 => Self::UVec4,
+			GL_DOUBLE => Self::Double,
+			GL_DOUBLE_VEC2 => Self::DVec2,
+			GL_DOUBLE_VEC3 => Self::DVec3,
+			GL_DOUBLE_VEC4 => Self::DVec4,
+			GL_DOUBLE_MAT2 => Self::DMat2,
+			GL_DOUBLE_MAT3 => Self::DMat3,
+			GL_DOUBLE_MAT4 => Self::DMat4,
+			GL_DOUBLE_MAT2x3 => Self::DMat2x3,
+			GL_DOUBLE_MAT2x4 => Self::DMat2x4,
+			GL_DOUBLE_MAT3x2 => Self::DMat3x2,
+			GL_DOUBLE_MAT3x4 => Self::DMat3x4,
+			GL_DOUBLE_MAT4x2 => Self::DMat4x2,
+			GL_DOUBLE_MAT4x3 => Self::DMat4x3,
+			_ => panic!("Invalid value {val} of `AttribType`"),
+		}
+	}
+}
+
+impl Debug for AttribType {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::Float => write!(f, "Float"),
+			Self::Vec2 => write!(f, "Vec2"),
+			Self::Vec3 => write!(f, "Vec3"),
+			Self::Vec4 => write!(f, "Vec4"),
+			Self::Mat2 => write!(f, "Mat2"),
+			Self::Mat3 => write!(f, "Mat3"),
+			Self::Mat4 => write!(f, "Mat4"),
+			Self::Mat2x3 => write!(f, "Mat2x3"),
+			Self::Mat2x4 => write!(f, "Mat2x4"),
+			Self::Mat3x2 => write!(f, "Mat3x2"),
+			Self::Mat3x4 => write!(f, "Mat3x4"),
+			Self::Mat4x2 => write!(f, "Mat4x2"),
+			Self::Mat4x3 => write!(f, "Mat4x3"),
+			Self::Int => write!(f, "Int"),
+			Self::IVec2 => write!(f, "IVec2"),
+			Self::IVec3 => write!(f, "IVec3"),
+			Self::IVec4 => write!(f, "IVec4"),
+			Self::UInt => write!(f, "UInt"),
+			Self::UVec2 => write!(f, "UVec2"),
+			Self::UVec3 => write!(f, "UVec3"),
+			Self::UVec4 => write!(f, "UVec4"),
+			Self::Double => write!(f, "Double"),
+			Self::DVec2 => write!(f, "DVec2"),
+			Self::DVec3 => write!(f, "DVec3"),
+			Self::DVec4 => write!(f, "DVec4"),
+			Self::DMat2 => write!(f, "DMat2"),
+			Self::DMat3 => write!(f, "DMat3"),
+			Self::DMat4 => write!(f, "DMat4"),
+			Self::DMat2x3 => write!(f, "DMat2x3"),
+			Self::DMat2x4 => write!(f, "DMat2x4"),
+			Self::DMat3x2 => write!(f, "DMat3x2"),
+			Self::DMat3x4 => write!(f, "DMat3x4"),
+			Self::DMat4x2 => write!(f, "DMat4x2"),
+			Self::DMat4x3 => write!(f, "DMat4x3"),
+		}
+	}
+}
+
+impl Display for AttribType {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		<Self as Debug>::fmt(self, f)
 	}
 }
