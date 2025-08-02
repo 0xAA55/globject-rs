@@ -140,8 +140,6 @@ impl<M: Mesh> Pipeline<M> {
 						self.glcore.glVertexAttribDivisor(location, v_a_d);
 					}
 				}
-			} else {
-				println!("[INFO] Vertex field `{field_name}` is not active.");
 			}
 			cur_offset += datainfo.size_in_bytes();
 		}
