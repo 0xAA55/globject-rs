@@ -45,6 +45,10 @@ impl<M: Mesh> Pipeline<M> {
 			let typename = Self::get_typename_of_vertex_struct_member(field_value);
 			println!("{field_name}: {typename}");
 		}
+		let active_attribs = self.shader.get_active_attribs().unwrap();
+		for (attrib_name, attrib_type) in active_attribs.iter() {
+			println!("{attrib_name}: {} {}", attrib_type.type_, attrib_type.size);
+		}
 	}
 
 	pub fn get_typename_of_vertex_struct_member(data: &dyn Any) -> &str {
