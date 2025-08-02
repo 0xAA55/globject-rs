@@ -24,8 +24,9 @@ pub struct Pipeline<M: Mesh> {
 	pub glcore: Rc<GLCore>,
 	name: u32,
 	pub mesh: Rc<M>,
-	pub framebuffer: Option<Rc<Framebuffer>>,
 	pub shader: Rc<Shader>,
+	vertex_stride: usize,
+	instance_stride: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -72,15 +73,16 @@ impl<M: Mesh> Pipeline<M> {
 		self.name
 	}
 
-	pub fn new<V: VertexType, I: VertexType>(glcore: Rc<GLCore>, mesh: Rc<M>, framebuffer: Option<Rc<Framebuffer>>, shader: Rc<Shader>) -> Self {
+	pub fn new<V: VertexType, I: VertexType>(glcore: Rc<GLCore>, mesh: Rc<M>, shader: Rc<Shader>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenVertexArrays(1, &mut name as *mut u32);
 		let mut ret = Self {
 			glcore,
 			name,
 			mesh,
-			framebuffer,
 			shader,
+			vertex_stride: size_of::<V>(),
+			instance_stride: size_of::<I>(),
 		};
 		ret.establish_pipeline::<V, I>();
 		ret
@@ -333,7 +335,6 @@ impl<M: Mesh> Debug for Pipeline<M> {
 		f.debug_struct("Pipeline")
 		.field("name", &self.name)
 		.field("mesh", &self.mesh)
-		.field("framebuffer", &self.framebuffer)
 		.field("shader", &self.shader)
 		.finish()
 	}
