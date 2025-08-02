@@ -99,7 +99,7 @@ mod tests {
                     }
                 ")
             ).unwrap());
-            let pipeline = Rc::new(Pipeline::new::<MyVertex>(glcore.clone(), mesh.clone(), None, shader.clone()));
+            let pipeline = Rc::new(Pipeline::new::<MyVertex, MyVertex>(glcore.clone(), mesh.clone(), None, shader.clone()));
             Ok(Self {
                 window,
                 events,
