@@ -136,6 +136,135 @@ impl ElementType {
 	}
 }
 
+impl ElementBuffer {
+	pub fn get_buffer(&self) -> &Buffer {
+		&self.buffer
+	}
+
+	pub fn get_type(&self) -> ElementType {
+		self.element_type
+	}
+
+	pub fn get_num_elements(&self) -> usize {
+		self.buffer.size() / self.element_type.get_size()
+	}
+
+	pub fn bind<'a>(&'a self) -> BufferBind<'a> {
+		self.buffer.bind()
+	}
+}
+
+impl ElementBufferVec {
+	pub fn get_buffer(&self) -> &Buffer {
+		&self.buffer.get_buffer()
+	}
+
+	pub fn get_type(&self) -> ElementType {
+		self.element_type
+	}
+
+	pub fn get_num_elements(&self) -> usize {
+		self.buffer.size_in_bytes() / self.element_type.get_size()
+	}
+
+	pub fn bind<'a>(&'a self) -> BufferBind<'a> {
+		self.buffer.bind()
+	}
+}
+
+impl<T: BufferVecItem> ElementBufferVecDynamic<T> {
+	pub fn get_buffer(&self) -> &Buffer {
+		&self.buffer.get_buffer()
+	}
+
+	pub fn get_type(&self) -> ElementType {
+		self.element_type
+	}
+
+	pub fn get_num_elements(&self) -> usize {
+		self.buffer.len()
+	}
+
+	pub fn bind<'a>(&'a self) -> BufferBind<'a> {
+		self.buffer.bind()
+	}
+}
+
+impl<'a> ElementBufferRef<'a> {
+	pub fn new(buffer: &'a Buffer, element_type: ElementType) -> Self {
+		Self {
+			buffer,
+			element_type,
+		}
+	}
+
+	pub fn get_type(&self) -> ElementType {
+		self.element_type
+	}
+
+	pub fn get_num_elements(&self) -> usize {
+		self.buffer.size() / self.element_type.get_size()
+	}
+
+	pub fn bind(&self) -> BufferBind<'a> {
+		self.buffer.bind()
+	}
+}
+
+impl From<ElementBuffer> for ElementBufferVec{
+	fn from(val: ElementBuffer) -> Self {
+		Self {
+			buffer: val.buffer.into(),
+			element_type: val.element_type,
+		}
+	}
+}
+
+impl From<ElementBufferVec> for ElementBuffer{
+	fn from(val: ElementBufferVec) -> Self {
+		Self {
+			buffer: val.buffer.into(),
+			element_type: val.element_type,
+		}
+	}
+}
+
+impl<T: BufferVecItem> From<ElementBuffer> for ElementBufferVecDynamic<T> {
+	fn from(val: ElementBuffer) -> Self {
+		Self {
+			buffer: val.buffer.into(),
+			element_type: val.element_type,
+		}
+	}
+}
+
+impl<T: BufferVecItem> From<ElementBufferVec> for ElementBufferVecDynamic<T> {
+	fn from(val: ElementBufferVec) -> Self {
+		Self {
+			buffer: val.buffer.into(),
+			element_type: val.element_type,
+		}
+	}
+}
+
+impl<T: BufferVecItem> From<ElementBufferVecDynamic<T>> for ElementBuffer {
+	fn from(val: ElementBufferVecDynamic<T>) -> Self {
+		Self {
+			buffer: val.buffer.into(),
+			element_type: val.element_type,
+		}
+	}
+}
+
+impl<T: BufferVecItem> From<ElementBufferVecDynamic<T>> for ElementBufferVec {
+	fn from(val: ElementBufferVecDynamic<T>) -> Self {
+		Self {
+			buffer: val.buffer.into(),
+			element_type: val.element_type,
+		}
+	}
+}
+
 impl From<StaticMesh> for EditableMesh {
 	fn from(val: StaticMesh) -> Self {
 		EditableMesh {
@@ -373,3 +502,31 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh 
 	}
 }
 
+impl Debug for PrimitiveMode {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::Points => write!(f, "Points"),
+			Self::LineStrip => write!(f, "Line Strip"),
+			Self::LineLoop => write!(f, "Line Loop"),
+			Self::Lines => write!(f, "Lines"),
+			Self::LineStripAdjacency => write!(f, "Line Strip Adjacency"),
+			Self::LinesAdjacency => write!(f, "Lines Adjacency"),
+			Self::TriangleStrip => write!(f, "Triangle Strip"),
+			Self::TriangleFan => write!(f, "Triangle Fan"),
+			Self::Triangles => write!(f, "Triangles"),
+			Self::TriangleStripAdjacency => write!(f, "Triangle Strip Adjacency"),
+			Self::TrianglesAdjacency => write!(f, "Triangles Adjacency"),
+			Self::Patches => write!(f, "Patches"),
+		}
+	}
+}
+
+impl Debug for ElementType {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::U8 => write!(f, "U8"),
+			Self::U16 => write!(f, "U16"),
+			Self::U32 => write!(f, "U32"),
+		}
+	}
+}
