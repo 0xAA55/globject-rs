@@ -12,7 +12,6 @@ pub mod mesh;
 pub mod pipeline;
 
 extern crate nalgebra_glm as glm;
-extern crate zerocopy;
 extern crate struct_iterable;
 
 #[cfg(test)]
@@ -36,7 +35,6 @@ mod tests {
     use glm::*;
 
     use struct_iterable::Iterable;
-    use zerocopy::Unaligned;
 
     #[derive(Iterable, Default, Debug, Clone, Copy)]
     pub struct MyVertex {
