@@ -1,12 +1,28 @@
 
 #![allow(dead_code)]
 
-#[repr(C, packed)]
+use std::{
+	fmt::Debug,
+};
+
 #[derive(Default, Debug, Clone, Copy)]
-pub struct DrawCommand {
+pub struct DrawArrayCommand {
+	vertex_count: u32,
+	instance_count: u32,
+	first_index: u32,
+	base_instance: u32,
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct DrawElementsCommand {
 	element_count: u32,
 	instance_count: u32,
 	first_index: u32,
 	base_vertex: i32,
 	base_instance: u32,
 }
+
+pub trait DrawCommand: Default + Clone + Copy + Sized + Debug {}
+
+impl DrawCommand for DrawArrayCommand {}
+impl DrawCommand for DrawElementsCommand {}
