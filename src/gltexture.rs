@@ -639,6 +639,26 @@ impl Texture {
 	pub fn drop_pixel_buffer(&mut self) {
 		self.pixel_buffer = None
 	}
+
+	/// Get width
+	pub fn get_width(&self) -> u32 {
+		self.width
+	}
+
+	/// Get height
+	pub fn get_height(&self) -> u32 {
+		self.height
+	}
+
+	/// Get depth
+	pub fn get_depth(&self) -> u32 {
+		self.depth
+	}
+
+	/// Get dimension
+	pub fn get_dim(&self) -> TextureDimension {
+		self.dim
+	}
 }
 
 impl Drop for Texture {
