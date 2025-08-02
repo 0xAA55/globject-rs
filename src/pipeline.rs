@@ -24,6 +24,12 @@ pub struct Pipeline<M: Mesh> {
 	pub shader: Rc<Shader>,
 }
 
+
+#[derive(Debug)]
+pub struct PipelineBind<'a, M: Mesh> {
+	pub pipeline: &'a Pipeline<M>,
+}
+
 impl<M: Mesh> Pipeline<M> {
 	/// Get the internal name
 	pub fn get_name(&self) -> u32 {
@@ -53,6 +59,11 @@ impl<M: Mesh> Pipeline<M> {
 		let active_attribs = self.shader.get_active_attribs().unwrap();
 		for (attrib_name, attrib_type) in active_attribs.iter() {
 			println!("{attrib_name}: {} {}", attrib_type.type_, attrib_type.size);
+
+	pub fn bind<'a>(&'a self) -> PipelineBind<'a, M> {
+		PipelineBind::new(self)
+	}
+
 		}
 	}
 
@@ -140,6 +151,27 @@ impl<M: Mesh> Pipeline<M> {
 	}
 }
 
+impl<'a, M: Mesh> PipelineBind<'a, M> {
+	fn new(pipeline: &'a Pipeline<M>) -> Self {
+		pipeline.glcore.glBindVertexArray(pipeline.name);
+		Self {
+			pipeline,
+		}
+	}
+
+	/// Unbind the VAO by utilizing the RAII rules.
+	pub fn unbind(self) {}
+}
+
+impl<'a, M: Mesh> Drop for PipelineBind<'a, M> {
+	fn drop(&mut self) {
+		self.pipeline.glcore.glBindVertexArray(0);
+	}
+}
+
+impl<M: Mesh> Drop for Pipeline<M> {
+	fn drop(&mut self) {
+		self.glcore.glDeleteVertexArrays(1, &self.name as *const u32);
 	}
 }
 
@@ -153,3 +185,5 @@ impl<M: Mesh> Debug for Pipeline<M> {
 		.finish()
 	}
 }
+
+
