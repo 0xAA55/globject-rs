@@ -207,6 +207,7 @@ impl Shader {
 			let mut type_: u32 = 0;
 			self.glcore.glGetActiveAttrib(self.program, i as u32, max_length, 0 as *mut i32, &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
 			let name = String::from_utf8(unsafe{transmute(name)})?;
+			let name = name.trim_end_matches('\0').to_string();
 			let type_ = AttribType::from(type_);
 			ret.insert(name, AttribVarType{type_, size});
 		}
