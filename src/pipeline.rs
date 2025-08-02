@@ -327,7 +327,7 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 	pub fn draw(&self, fbo: Option<&Framebuffer>) {
 		let glcore = &self.pipeline.glcore;
 		let program = self.pipeline.shader.use_program();
-		let bind = fbo.map_or_else(
+		let fbo_bind = fbo.map_or_else(
 		|| {
 			glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 			None
@@ -379,8 +379,8 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 		}
 
 		a_bind.unbind();
-		bind.map(|b|b.unbind());
 		program.unuse();
+		fbo_bind.map(|b|b.unbind());
 	}
 
 	/// Unbind the VAO by utilizing the RAII rules.
