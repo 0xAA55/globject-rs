@@ -2,6 +2,8 @@
 #![allow(dead_code)]
 
 use glcore::*;
+use crate::glcmdbuf::*;
+use crate::glbuffer::*;
 use crate::glshader::*;
 use crate::glframebuffer::*;
 use crate::mesh::*;
@@ -12,6 +14,7 @@ use std::{
 	ffi::{CString, c_void},
 	fmt::{self, Debug, Formatter},
 	mem::size_of,
+	ptr::null,
 	rc::Rc,
 };
 use half::f16;
@@ -312,6 +315,64 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 		Self {
 			pipeline,
 		}
+	}
+
+	/// Run the pipeline
+	pub fn draw(&self, fbo: Option<&Framebuffer>) {
+		let glcore = &self.pipeline.glcore;
+		let bind = fbo.map_or_else(
+		|| {
+			glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			None
+		},
+		|fbo| {
+			let bind = fbo.bind();
+			bind.setup(&self.pipeline.shader);
+			Some(bind)
+		});
+
+		let mesh = &self.pipeline.mesh;
+		let vertex_buffer = mesh.get_vertex_buffer();
+		let element_buffer = mesh.get_element_buffer();
+		let a_bind = vertex_buffer.bind();
+
+		if let Some(command_buffer) = mesh.get_command_buffer() {
+			assert_eq!(command_buffer.get_target(), BufferTarget::DrawIndirectBuffer);
+			let c_bind = command_buffer.bind();
+			if let Some(element_buffer) = element_buffer {
+				let e_bind = element_buffer.bind();
+				let num_commands = command_buffer.size() / size_of::<DrawElementsCommand>();
+				glcore.glMultiDrawElementsIndirect(mesh.get_primitive() as u32, element_buffer.get_type() as u32, null(), num_commands as i32, size_of::<DrawElementsCommand>() as i32);
+				e_bind.unbind();
+			} else {
+				let num_commands = command_buffer.size() / size_of::<DrawArrayCommand>();
+				glcore.glMultiDrawArraysIndirect(mesh.get_primitive() as u32, null(), num_commands as i32, size_of::<DrawArrayCommand>() as i32);
+			}
+			c_bind.unbind();
+		} else {
+			let num_vertices = vertex_buffer.size() / self.pipeline.vertex_stride;
+			if let Some(instance_buffer) = mesh.get_instance_buffer() {
+				let num_instances = instance_buffer.size() / self.pipeline.instance_stride;
+				if let Some(element_buffer) = element_buffer {
+					let e_bind = element_buffer.bind();
+					glcore.glDrawElementsInstanced(mesh.get_primitive() as u32, element_buffer.get_num_elements() as i32, element_buffer.get_type() as u32, null(), num_instances as i32);
+					e_bind.unbind();
+				} else {
+					glcore.glDrawArraysInstanced(mesh.get_primitive() as u32, 0, num_vertices as i32, num_instances as i32);
+				}
+			} else {
+				if let Some(element_buffer) = element_buffer {
+					let e_bind = element_buffer.bind();
+					glcore.glDrawElements(mesh.get_primitive() as u32, element_buffer.get_num_elements() as i32, element_buffer.get_type() as u32, null());
+					e_bind.unbind();
+				} else {
+					glcore.glDrawArrays(mesh.get_primitive() as u32, 0, num_vertices as i32);
+				}
+			}
+		}
+
+		a_bind.unbind();
+		bind.map(|b|b.unbind());
 	}
 
 	/// Unbind the VAO by utilizing the RAII rules.
