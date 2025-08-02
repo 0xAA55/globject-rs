@@ -190,7 +190,7 @@ impl<M: Mesh> Pipeline<M> {
 							_ => panic!("Unsupported type of member: `{member_type}`"),
 						}
 					};
-					let size = u32::from(member_type.chars().last().unwrap());
+					let size = u32::from(member_type.chars().last().unwrap()) - u32::from('0');
 					DataGlType{data_type, size, rows: 1}
 				} else if member_type.contains("mat") {
 					let data_type = if member_type.starts_with("d") {
