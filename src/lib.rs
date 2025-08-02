@@ -38,7 +38,6 @@ mod tests {
     use struct_iterable::Iterable;
     use zerocopy::Unaligned;
 
-    #[repr(C)]
     #[derive(Iterable, Default, Debug, Clone, Copy)]
     pub struct MyVertex {
         position: Vec2,
