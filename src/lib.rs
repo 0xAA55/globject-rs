@@ -35,9 +35,10 @@ mod tests {
     use glm::*;
 
     use struct_iterable::Iterable;
+    use zerocopy::Unaligned;
 
-    #[repr(C, packed)]
-    #[derive(Unaligned, Iterable, Default, Debug, Clone, Copy)]
+    #[repr(C)]
+    #[derive(Iterable, Default, Debug, Clone, Copy)]
     pub struct MyVertex {
         position: Vec2,
     }
