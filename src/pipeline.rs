@@ -341,7 +341,6 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 		let mesh = &self.pipeline.mesh;
 		let vertex_buffer = mesh.get_vertex_buffer();
 		let element_buffer = mesh.get_element_buffer();
-		let a_bind = vertex_buffer.bind();
 
 		if let Some(command_buffer) = mesh.get_command_buffer() {
 			assert_eq!(command_buffer.get_target(), BufferTarget::DrawIndirectBuffer);
@@ -378,7 +377,6 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 			}
 		}
 
-		a_bind.unbind();
 		program.unuse();
 		fbo_bind.map(|b|b.unbind());
 	}
