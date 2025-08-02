@@ -12,6 +12,7 @@ pub mod mesh;
 pub mod pipeline;
 
 extern crate nalgebra_glm as glm;
+extern crate zerocopy;
 
 #[cfg(test)]
 mod tests {
