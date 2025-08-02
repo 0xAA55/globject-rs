@@ -283,6 +283,15 @@ impl AttribType {
 			Self::Mat4x3 | Self::DMat4x3 => (4, 3),
 		}
 	}
+
+	pub fn get_base_type(&self) -> AttribType {
+		match self {
+			Self::Float | Self::Vec2 | Self::Vec3 | Self::Vec4 | Self::Mat2 | Self::Mat3 | Self::Mat4 | Self::Mat2x3 | Self::Mat2x4 | Self::Mat3x2 | Self::Mat3x4 | Self::Mat4x2 | Self::Mat4x3 => Self::Float,
+			Self::Double | Self::DVec2 | Self::DVec3 | Self::DVec4 | Self::DMat2 | Self::DMat3 | Self::DMat4 | Self::DMat2x3 | Self::DMat2x4 | Self::DMat3x2 | Self::DMat3x4 | Self::DMat4x2 | Self::DMat4x3 => Self::Double,
+			Self::Int | Self::IVec2 | Self::IVec3 | Self::IVec4 => Self::Int,
+			Self::UInt | Self::UVec2 | Self::UVec3 | Self::UVec4 => Self::UInt,
+		}
+	}
 }
 
 impl AttribVarType {
@@ -304,6 +313,10 @@ impl AttribVarType {
 
 	pub fn get_type(&self) -> AttribType {
 		self.type_
+	}
+
+	pub fn get_base_type(&self) -> AttribType {
+		self.type_.get_base_type()
 	}
 }
 
