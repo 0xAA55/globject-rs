@@ -26,6 +26,13 @@ pub enum PrimitiveMode {
 	Patches = GL_PATCHES as isize,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum ElementType {
+	U8 = GL_UNSIGNED_BYTE as isize,
+	U16 = GL_UNSIGNED_SHORT as isize,
+	U32 = GL_UNSIGNED_INT as isize,
+}
+
 #[derive(Clone)]
 pub struct StaticMesh {
 	pub glcore: Rc<GLCore>,
