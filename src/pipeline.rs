@@ -60,14 +60,12 @@ impl<M: Mesh> Pipeline<M> {
 		     if data.is::<u8>() {"u8"}
 		else if data.is::<u16>() {"u16"}
 		else if data.is::<u32>() {"u32"}
-		else if data.is::<u64>() {"u64"}
 		else if data.is::<i8>() {"i8"}
 		else if data.is::<i16>() {"i16"}
 		else if data.is::<i32>() {"i32"}
-		else if data.is::<i64>() {"i64"}
+		else if data.is::<f16>() {"f16"}
 		else if data.is::<f32>() {"f32"}
 		else if data.is::<f64>() {"f64"}
-		else if data.is::<bool>() {"bool"}
 		else if data.is::<Vec1>() {"Vec1"}
 		else if data.is::<Vec2>() {"Vec2"}
 		else if data.is::<Vec3>() {"Vec3"}
@@ -96,10 +94,6 @@ impl<M: Mesh> Pipeline<M> {
 		else if data.is::<I32Vec2>() {"I32Vec2"}
 		else if data.is::<I32Vec3>() {"I32Vec3"}
 		else if data.is::<I32Vec4>() {"I32Vec4"}
-		else if data.is::<I64Vec1>() {"I64Vec1"}
-		else if data.is::<I64Vec2>() {"I64Vec2"}
-		else if data.is::<I64Vec3>() {"I64Vec3"}
-		else if data.is::<I64Vec4>() {"I64Vec4"}
 		else if data.is::<UVec1>() {"UVec1"}
 		else if data.is::<UVec2>() {"UVec2"}
 		else if data.is::<UVec3>() {"UVec3"}
@@ -116,10 +110,6 @@ impl<M: Mesh> Pipeline<M> {
 		else if data.is::<U32Vec2>() {"U32Vec2"}
 		else if data.is::<U32Vec3>() {"U32Vec3"}
 		else if data.is::<U32Vec4>() {"U32Vec4"}
-		else if data.is::<U64Vec1>() {"U64Vec1"}
-		else if data.is::<U64Vec2>() {"U64Vec2"}
-		else if data.is::<U64Vec3>() {"U64Vec3"}
-		else if data.is::<U64Vec4>() {"U64Vec4"}
 		else if data.is::<Quat>() {"Quat"}
 		else if data.is::<DQuat>() {"DQuat"}
 		else if data.is::<Mat2>() {"Mat2"}
@@ -146,7 +136,10 @@ impl<M: Mesh> Pipeline<M> {
 		else if data.is::<DMat4x2>() {"DMat4x2"}
 		else if data.is::<DMat4x3>() {"DMat4x3"}
 		else if data.is::<DMat4x4>() {"DMat4x4"}
-		else {panic!("Unknown type of value: {:?}", data)}
+		else {panic!("Unsupported type of value: {:?}", data)}
+	}
+}
+
 	}
 }
 
