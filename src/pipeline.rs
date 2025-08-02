@@ -93,6 +93,7 @@ impl<M: Mesh> Pipeline<M> {
 
 	fn establish_pipeline<V: VertexType, I: VertexType>(&mut self) {
 		let active_attribs = self.shader.get_active_attribs().unwrap();
+		let program = self.shader.use_();
 		let bind = self.bind();
 
 		let vb_bind = self.mesh.get_vertex_buffer().bind();
@@ -106,6 +107,7 @@ impl<M: Mesh> Pipeline<M> {
 		}
 
 		bind.unbind();
+		program.unuse();
 	}
 
 	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, AttribVarType>, v_a_d: u32) {
@@ -320,6 +322,7 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 	/// Run the pipeline
 	pub fn draw(&self, fbo: Option<&Framebuffer>) {
 		let glcore = &self.pipeline.glcore;
+		let program = self.pipeline.shader.use_();
 		let bind = fbo.map_or_else(
 		|| {
 			glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -373,6 +376,7 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 
 		a_bind.unbind();
 		bind.map(|b|b.unbind());
+		program.unuse();
 	}
 
 	/// Unbind the VAO by utilizing the RAII rules.
