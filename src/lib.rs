@@ -35,7 +35,8 @@ mod tests {
 
     use struct_iterable::Iterable;
 
-    #[derive(Iterable, Default, Debug, Clone, Copy)]
+    #[repr(C, packed)]
+    #[derive(Unaligned, Iterable, Default, Debug, Clone, Copy)]
     pub struct MyVertex {
         position: Vec2,
     }
