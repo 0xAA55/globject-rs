@@ -13,6 +13,7 @@ pub mod pipeline;
 
 extern crate nalgebra_glm as glm;
 extern crate zerocopy;
+extern crate struct_iterable;
 
 #[cfg(test)]
 mod tests {
