@@ -8,9 +8,13 @@ use crate::mesh::*;
 use struct_iterable::Iterable;
 use std::{
 	any::Any,
+	collections::BTreeMap,
+	ffi::{CString, c_void},
 	fmt::{self, Debug, Formatter},
+	mem::size_of,
 	rc::Rc,
 };
+use half::f16;
 use glm::*;
 
 pub trait VertexType: Copy + Clone + Sized + Default + Debug + Iterable {}
@@ -68,7 +72,7 @@ impl<M: Mesh> Pipeline<M> {
 		self.name
 	}
 
-	pub fn new<T: VertexType>(glcore: Rc<GLCore>, mesh: Rc<M>, framebuffer: Option<Rc<Framebuffer>>, shader: Rc<Shader>) -> Self {
+	pub fn new<V: VertexType, I: VertexType>(glcore: Rc<GLCore>, mesh: Rc<M>, framebuffer: Option<Rc<Framebuffer>>, shader: Rc<Shader>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenVertexArrays(1, &mut name as *mut u32);
 		let mut ret = Self {
@@ -78,19 +82,70 @@ impl<M: Mesh> Pipeline<M> {
 			framebuffer,
 			shader,
 		};
-		ret.establish_pipeline::<T>();
+		ret.establish_pipeline::<V, I>();
 		ret
 	}
 
-	fn establish_pipeline<T: VertexType>(&mut self) {
+	fn establish_pipeline<V: VertexType, I: VertexType>(&mut self) {
+		let active_attribs = self.shader.get_active_attribs().unwrap();
+		let bind = self.bind();
+
+		let vb_bind = self.mesh.get_vertex_buffer().bind();
+		self.describe::<V>(&active_attribs, 0);
+		vb_bind.unbind();
+
+		if let Some(ib) = self.mesh.get_instance_buffer() {
+			let ib_bind = ib.bind();
+			self.describe::<V>(&active_attribs, 1);
+			ib_bind.unbind();
+		}
+
+		bind.unbind();
+	}
+
+	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, AttribVarType>, v_a_d: u32) {
 		let instance = T::default();
+		let stride = size_of::<T>();
+		let mut cur_offset: usize = 0;
 		for (field_name, field_value) in instance.iter() {
 			let typename = Self::get_typename_of_vertex_struct_member(field_value);
-			println!("{field_name}: {typename}");
+			let datainfo = Self::get_vertex_struct_member_gltype(typename);
+			if let Some(attrib_type) = active_attribs.get(field_name) {
+				let (p_size, p_rows) = attrib_type.get_size_and_rows();
+				if p_size != datainfo.size || p_rows != datainfo.rows {
+					panic!("The size and rows of the shader attrib is {p_size}x{p_rows}, but the given member of the vertex struct is {}x{}", datainfo.size, datainfo.rows);
+				}
+				let c_field_name = CString::new(field_name).unwrap();
+				let location = self.glcore.glGetAttribLocation(self.shader.get_name(), c_field_name.as_ptr());
+				if location >= 0 {
+					let location = location as u32;
+					for row in 0..datainfo.rows {
+						let location = location + row;
+						let do_normalize = if field_name.contains("normalized") && field_name.contains("_") {
+							1
+						} else {
+							0
+						};
+						let ptr_param = cur_offset as *const c_void;
+						self.glcore.glEnableVertexAttribArray(location);
+						if attrib_type.is_float() {
+							self.glcore.glVertexAttribPointer(location, p_size as i32, attrib_type.get_type() as u32, do_normalize, stride as i32, ptr_param);
+						} else if attrib_type.is_integer() {
+							self.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_type() as u32, stride as i32, ptr_param);
+						} else if attrib_type.is_double() {
+							self.glcore.glVertexAttribLPointer(location, p_size as i32, attrib_type.get_type() as u32, stride as i32, ptr_param);
+						} else {
+							panic!("Unknown data type of the attrib `{} {field_name}`", attrib_type.get_type());
+						}
+						self.glcore.glVertexAttribDivisor(location, v_a_d);
+					}
+				}
+			} else {
+				println!("[INFO] Vertex field `{field_name}` is not active.");
+			}
+			cur_offset += datainfo.size_in_bytes();
 		}
-		let active_attribs = self.shader.get_active_attribs().unwrap();
-		for (attrib_name, attrib_type) in active_attribs.iter() {
-			println!("{attrib_name}: {} {}", attrib_type.type_, attrib_type.size);
+	}
 
 	pub fn bind<'a>(&'a self) -> PipelineBind<'a, M> {
 		PipelineBind::new(self)
