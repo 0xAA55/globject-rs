@@ -11,7 +11,7 @@ use std::{
 	rc::Rc,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum TextureDimension {
 	Tex1d = GL_TEXTURE_1D as isize,
 	Tex2d = GL_TEXTURE_2D as isize,
@@ -19,7 +19,7 @@ pub enum TextureDimension {
 	TexCube = GL_TEXTURE_CUBE_MAP as isize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum TextureTarget {
 	Tex1d = GL_TEXTURE_1D as isize,
 	Tex2d = GL_TEXTURE_2D as isize,
@@ -33,7 +33,7 @@ pub enum TextureTarget {
 	TexCubeNegZ = GL_TEXTURE_CUBE_MAP_NEGATIVE_Z as isize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum CubeMapFaces {
 	TexCubePosX = TextureTarget::TexCubePosX as isize,
 	TexCubeNegX = TextureTarget::TexCubeNegX as isize,
@@ -52,7 +52,8 @@ pub const CUBE_FACE_TARGETS: [CubeMapFaces; 6] = [
 	CubeMapFaces::TexCubeNegZ,
 ];
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq
+         )]
 pub enum TextureFormat {
 	Depth = GL_DEPTH_COMPONENT as isize,
 	DepthStencil = GL_DEPTH_STENCIL as isize,
@@ -117,7 +118,7 @@ pub enum TextureFormat {
 	Rgba32ui = GL_RGBA32UI as isize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum TextureWrapping {
 	ClampToEdge = GL_CLAMP_TO_EDGE as isize,
 	ClampToBorder = GL_CLAMP_TO_BORDER as isize,
@@ -126,7 +127,7 @@ pub enum TextureWrapping {
 	MirroredRepeat = GL_MIRRORED_REPEAT as isize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum SamplerFilter {
 	Nearest = GL_NEAREST as isize,
 	Linear = GL_LINEAR as isize,
@@ -136,13 +137,13 @@ pub enum SamplerFilter {
 	LinearMipmapLinear = GL_LINEAR_MIPMAP_LINEAR as isize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum SamplerMagFilter {
 	Nearest = GL_NEAREST as isize,
 	Linear = GL_LINEAR as isize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum PixelFormat {
 	Red = GL_RED as isize,
 	Rg = GL_RG as isize,
@@ -161,7 +162,7 @@ pub enum PixelFormat {
 	DepthStencil = GL_DEPTH_STENCIL as isize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum ComponentType {
 	U8 = GL_UNSIGNED_BYTE as isize,
 	I8 = GL_BYTE as isize,

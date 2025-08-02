@@ -11,7 +11,7 @@ use std::{
 };
 
 /// The OpenGL buffer binding targets
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum BufferTarget {
 	ArrayBuffer = GL_ARRAY_BUFFER as isize,
 	AtomicCounterBuffer = GL_ATOMIC_COUNTER_BUFFER as isize,
@@ -30,7 +30,7 @@ pub enum BufferTarget {
 }
 
 /// The usage for the buffer
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum BufferUsage {
 	StreamDraw = GL_STREAM_DRAW as isize,
 	StreamRead = GL_STREAM_READ as isize,
@@ -44,7 +44,7 @@ pub enum BufferUsage {
 }
 
 /// The access flags for `glMapBuffers()`
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum MapAccess {
 	ReadOnly = GL_READ_ONLY as isize,
 	WriteOnly = GL_WRITE_ONLY as isize,
