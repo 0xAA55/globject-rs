@@ -10,6 +10,22 @@ use std::{
 	rc::Rc,
 };
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum PrimitiveMode {
+	Points = GL_POINTS as isize,
+	LineStrip = GL_LINE_STRIP as isize,
+	LineLoop = GL_LINE_LOOP as isize,
+	Lines = GL_LINES as isize,
+	LineStripAdjacency = GL_LINE_STRIP_ADJACENCY as isize,
+	LinesAdjacency = GL_LINES_ADJACENCY as isize,
+	TriangleStrip = GL_TRIANGLE_STRIP as isize,
+	TriangleFan = GL_TRIANGLE_FAN as isize,
+	Triangles = GL_TRIANGLES as isize,
+	TriangleStripAdjacency = GL_TRIANGLE_STRIP_ADJACENCY as isize,
+	TrianglesAdjacency = GL_TRIANGLES_ADJACENCY as isize,
+	Patches = GL_PATCHES as isize,
+}
+
 #[derive(Clone)]
 pub struct StaticMesh {
 	pub glcore: Rc<GLCore>,
