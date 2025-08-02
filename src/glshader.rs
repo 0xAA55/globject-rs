@@ -214,7 +214,7 @@ impl Shader {
 	}
 
 	/// Set to use the shader
-	pub fn use_<'a>(&'a self) -> ShaderUse<'a> {
+	pub fn use_program<'a>(&'a self) -> ShaderUse<'a> {
 		ShaderUse::new(self)
 	}
 }
