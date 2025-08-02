@@ -95,7 +95,7 @@ mod tests {
 
                     void main()
                     {
-                        Color = vec4(0.0, 0.5, 0.8, 1.0);
+                        Color = vec4(0.0, 0.6, 0.8, 1.0);
                     }
                 ")
             ).unwrap());
