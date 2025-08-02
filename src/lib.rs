@@ -70,10 +70,11 @@ mod tests {
             glfw.set_swap_interval(SwapInterval::Adaptive);
             let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
             let vertices = [
-                MyVertex{position: Vec2::new(0.0, 0.0)},
-                MyVertex{position: Vec2::new(1.0, 0.0)},
-                MyVertex{position: Vec2::new(0.0, 1.0)},
-                MyVertex{position: Vec2::new(1.0, 1.0)},
+                MyVertex{position: Vec2::new(-1.0, -1.0)},
+                MyVertex{position: Vec2::new( 1.0, -1.0)},
+                MyVertex{position: Vec2::new(-1.0,  1.0)},
+                MyVertex{position: Vec2::new( 1.0,  1.0)},
+            ];
             ];
             let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void);
             let mesh = Rc::new(StaticMesh::new(glcore.clone(), PrimitiveMode::TriangleStrip, vertex_buffer, None, None, None));
