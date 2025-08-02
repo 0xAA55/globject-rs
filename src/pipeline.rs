@@ -25,6 +25,11 @@ pub struct Pipeline<M: Mesh> {
 }
 
 impl<M: Mesh> Pipeline<M> {
+	/// Get the internal name
+	pub fn get_name(&self) -> u32 {
+		self.name
+	}
+
 	pub fn new<T: VertexType>(glcore: Rc<GLCore>, mesh: Rc<M>, framebuffer: Option<Rc<Framebuffer>>, shader: Rc<Shader>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenVertexArrays(1, &mut name as *mut u32);

@@ -21,6 +21,11 @@ pub trait BufferVecItem: Copy + Sized + Default + Debug {}
 impl<T> BufferVecItem for T where T: Copy + Sized + Default + Debug {}
 
 impl BufferVec {
+	/// Get the internal name
+	pub fn get_name(&self) -> u32 {
+		self.buffer.get_name()
+	}
+
 	/// Convert `Buffer` to an `BufferVec`
 	pub fn new(glcore: Rc<GLCore>, buffer: Buffer) -> Self {
 		Self {
@@ -134,6 +139,11 @@ pub struct BufferVecDynamic<T: BufferVecItem> {
 }
 
 impl<T: BufferVecItem> BufferVecDynamic<T> {
+	/// Get the internal name
+	pub fn get_name(&self) -> u32 {
+		self.buffer.get_name()
+	}
+
 	/// Convert an `BufferVec` to the `BufferVecDynamic`
 	pub fn new(buffer: BufferVec, num_items: usize) -> Self {
 		let capacity = buffer.size_in_bytes() / size_of::<T>();

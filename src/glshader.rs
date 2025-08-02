@@ -82,6 +82,11 @@ pub struct AttribVarType {
 }
 
 impl Shader {
+	/// Get the internal name
+	pub fn get_name(&self) -> u32 {
+		self.program
+	}
+
 	/// Compile a shader, returns the compiled shader object or the compiler info log
 	fn compile_shader(glcore: &GLCore, shader_type: u32, shader_source: &str) -> Result<u32, String> {
 		let shader = glcore.glCreateShader(shader_type);

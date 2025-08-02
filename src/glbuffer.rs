@@ -77,6 +77,11 @@ pub struct BufferMapping<'a> {
 }
 
 impl Buffer {
+	/// Get the internal name
+	pub fn get_name(&self) -> u32 {
+		self.name
+	}
+
 	/// Create a new OpenGL buffer with the specified size and data. The data could be `NULL`, indicating no initialization to the buffer.
 	pub fn new(glcore: Rc<GLCore>, target: BufferTarget, size: usize, usage: BufferUsage, data_ptr: *const c_void) -> Self {
 		let mut name: u32 = 0;

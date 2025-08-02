@@ -244,6 +244,11 @@ impl TextureFormat {
 }
 
 impl PixelBuffer {
+	/// Get the internal name
+	pub fn get_name(&self) -> u32 {
+		self.buffer.get_name()
+	}
+
 	pub fn new(glcore: Rc<GLCore>,
 			width: u32,
 			height: u32,
@@ -331,6 +336,11 @@ impl PixelBuffer {
 }
 
 impl Texture {
+	/// Get the internal name
+	pub fn get_name(&self) -> u32 {
+		self.name
+	}
+
 	fn new(glcore: Rc<GLCore>,
 			dim: TextureDimension,
 			format: TextureFormat,
