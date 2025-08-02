@@ -168,28 +168,28 @@ impl<M: Mesh> Pipeline<M> {
 			"f32" => return DataGlType{data_type: GL_FLOAT, size: 1, rows: 1},
 			"f64" => return DataGlType{data_type: GL_DOUBLE, size: 1, rows: 1},
 			_ => {
-				if member_type.contains("Vec") {
+				if member_type.contains("vec") {
 					let data_type =
-					     if member_type.starts_with("U32") {GL_UNSIGNED_INT}
-					else if member_type.starts_with("U16") {GL_UNSIGNED_SHORT}
-					else if member_type.starts_with("U8")  {GL_UNSIGNED_BYTE}
-					else if member_type.starts_with("I32") {GL_INT}
-					else if member_type.starts_with("I16") {GL_SHORT}
-					else if member_type.starts_with("I8")  {GL_BYTE}
+					     if member_type.starts_with("u32") {GL_UNSIGNED_INT}
+					else if member_type.starts_with("u16") {GL_UNSIGNED_SHORT}
+					else if member_type.starts_with("u8")  {GL_UNSIGNED_BYTE}
+					else if member_type.starts_with("i32") {GL_INT}
+					else if member_type.starts_with("i16") {GL_SHORT}
+					else if member_type.starts_with("i8")  {GL_BYTE}
 					else {
 						match member_type.chars().next().unwrap() {
-							'V' => GL_FLOAT,
-							'D' => GL_DOUBLE,
-							'B' => GL_BYTE,
-							'I' => GL_INT,
-							'U' => GL_UNSIGNED_INT,
+							'v' => GL_FLOAT,
+							'd' => GL_DOUBLE,
+							'b' => GL_BYTE,
+							'i' => GL_INT,
+							'u' => GL_UNSIGNED_INT,
 							_ => panic!("Unsupported type of member: `{member_type}`"),
 						}
 					};
 					let size = u32::from(member_type.chars().last().unwrap());
 					DataGlType{data_type, size, rows: 1}
-				} else if member_type.contains("Mat") {
-					let data_type = if member_type.starts_with("D") {
+				} else if member_type.contains("mat") {
+					let data_type = if member_type.starts_with("d") {
 						GL_DOUBLE
 					} else {
 						GL_FLOAT
@@ -213,8 +213,8 @@ impl<M: Mesh> Pipeline<M> {
 						}
 					};
 					DataGlType{data_type, size, rows}
-				} else if member_type.contains("Quat") {
-					let data_type = if member_type.starts_with("D") {
+				} else if member_type.contains("quat") {
+					let data_type = if member_type.starts_with("d") {
 						GL_DOUBLE
 					} else {
 						GL_FLOAT
@@ -237,76 +237,76 @@ impl<M: Mesh> Pipeline<M> {
 		else if data.is::<f16>() {"f16"}
 		else if data.is::<f32>() {"f32"}
 		else if data.is::<f64>() {"f64"}
-		else if data.is::<Vec1>() {"Vec1"}
-		else if data.is::<Vec2>() {"Vec2"}
-		else if data.is::<Vec3>() {"Vec3"}
-		else if data.is::<Vec4>() {"Vec4"}
-		else if data.is::<DVec1>() {"DVec1"}
-		else if data.is::<DVec2>() {"DVec2"}
-		else if data.is::<DVec3>() {"DVec3"}
-		else if data.is::<DVec4>() {"DVec4"}
-		else if data.is::<BVec1>() {"BVec1"}
-		else if data.is::<BVec2>() {"BVec2"}
-		else if data.is::<BVec3>() {"BVec3"}
-		else if data.is::<BVec4>() {"BVec4"}
-		else if data.is::<IVec1>() {"IVec1"}
-		else if data.is::<IVec2>() {"IVec2"}
-		else if data.is::<IVec3>() {"IVec3"}
-		else if data.is::<IVec4>() {"IVec4"}
-		else if data.is::<I8Vec1>() {"I8Vec1"}
-		else if data.is::<I8Vec2>() {"I8Vec2"}
-		else if data.is::<I8Vec3>() {"I8Vec3"}
-		else if data.is::<I8Vec4>() {"I8Vec4"}
-		else if data.is::<I16Vec1>() {"I16Vec1"}
-		else if data.is::<I16Vec2>() {"I16Vec2"}
-		else if data.is::<I16Vec3>() {"I16Vec3"}
-		else if data.is::<I16Vec4>() {"I16Vec4"}
-		else if data.is::<I32Vec1>() {"I32Vec1"}
-		else if data.is::<I32Vec2>() {"I32Vec2"}
-		else if data.is::<I32Vec3>() {"I32Vec3"}
-		else if data.is::<I32Vec4>() {"I32Vec4"}
-		else if data.is::<UVec1>() {"UVec1"}
-		else if data.is::<UVec2>() {"UVec2"}
-		else if data.is::<UVec3>() {"UVec3"}
-		else if data.is::<UVec4>() {"UVec4"}
-		else if data.is::<U8Vec1>() {"U8Vec1"}
-		else if data.is::<U8Vec2>() {"U8Vec2"}
-		else if data.is::<U8Vec3>() {"U8Vec3"}
-		else if data.is::<U8Vec4>() {"U8Vec4"}
-		else if data.is::<U16Vec1>() {"U16Vec1"}
-		else if data.is::<U16Vec2>() {"U16Vec2"}
-		else if data.is::<U16Vec3>() {"U16Vec3"}
-		else if data.is::<U16Vec4>() {"U16Vec4"}
-		else if data.is::<U32Vec1>() {"U32Vec1"}
-		else if data.is::<U32Vec2>() {"U32Vec2"}
-		else if data.is::<U32Vec3>() {"U32Vec3"}
-		else if data.is::<U32Vec4>() {"U32Vec4"}
-		else if data.is::<Quat>() {"Quat"}
-		else if data.is::<DQuat>() {"DQuat"}
-		else if data.is::<Mat2>() {"Mat2"}
-		else if data.is::<Mat3>() {"Mat3"}
-		else if data.is::<Mat4>() {"Mat4"}
-		else if data.is::<Mat2x2>() {"Mat2x2"}
-		else if data.is::<Mat2x3>() {"Mat2x3"}
-		else if data.is::<Mat2x4>() {"Mat2x4"}
-		else if data.is::<Mat3x2>() {"Mat3x2"}
-		else if data.is::<Mat3x3>() {"Mat3x3"}
-		else if data.is::<Mat3x4>() {"Mat3x4"}
-		else if data.is::<Mat4x2>() {"Mat4x2"}
-		else if data.is::<Mat4x3>() {"Mat4x3"}
-		else if data.is::<Mat4x4>() {"Mat4x4"}
-		else if data.is::<DMat2>() {"DMat2"}
-		else if data.is::<DMat3>() {"DMat3"}
-		else if data.is::<DMat4>() {"DMat4"}
-		else if data.is::<DMat2x2>() {"DMat2x2"}
-		else if data.is::<DMat2x3>() {"DMat2x3"}
-		else if data.is::<DMat2x4>() {"DMat2x4"}
-		else if data.is::<DMat3x2>() {"DMat3x2"}
-		else if data.is::<DMat3x3>() {"DMat3x3"}
-		else if data.is::<DMat3x4>() {"DMat3x4"}
-		else if data.is::<DMat4x2>() {"DMat4x2"}
-		else if data.is::<DMat4x3>() {"DMat4x3"}
-		else if data.is::<DMat4x4>() {"DMat4x4"}
+		else if data.is::<Vec1>() {"vec1"}
+		else if data.is::<Vec2>() {"vec2"}
+		else if data.is::<Vec3>() {"vec3"}
+		else if data.is::<Vec4>() {"vec4"}
+		else if data.is::<DVec1>() {"dvec1"}
+		else if data.is::<DVec2>() {"dvec2"}
+		else if data.is::<DVec3>() {"dvec3"}
+		else if data.is::<DVec4>() {"dvec4"}
+		else if data.is::<BVec1>() {"bvec1"}
+		else if data.is::<BVec2>() {"bvec2"}
+		else if data.is::<BVec3>() {"bvec3"}
+		else if data.is::<BVec4>() {"bvec4"}
+		else if data.is::<IVec1>() {"ivec1"}
+		else if data.is::<IVec2>() {"ivec2"}
+		else if data.is::<IVec3>() {"ivec3"}
+		else if data.is::<IVec4>() {"ivec4"}
+		else if data.is::<I8Vec1>() {"i8vec1"}
+		else if data.is::<I8Vec2>() {"i8vec2"}
+		else if data.is::<I8Vec3>() {"i8vec3"}
+		else if data.is::<I8Vec4>() {"i8vec4"}
+		else if data.is::<I16Vec1>() {"i16vec1"}
+		else if data.is::<I16Vec2>() {"i16vec2"}
+		else if data.is::<I16Vec3>() {"i16vec3"}
+		else if data.is::<I16Vec4>() {"i16vec4"}
+		else if data.is::<I32Vec1>() {"i32vec1"}
+		else if data.is::<I32Vec2>() {"i32vec2"}
+		else if data.is::<I32Vec3>() {"i32vec3"}
+		else if data.is::<I32Vec4>() {"i32vec4"}
+		else if data.is::<UVec1>() {"uvec1"}
+		else if data.is::<UVec2>() {"uvec2"}
+		else if data.is::<UVec3>() {"uvec3"}
+		else if data.is::<UVec4>() {"uvec4"}
+		else if data.is::<U8Vec1>() {"u8vec1"}
+		else if data.is::<U8Vec2>() {"u8vec2"}
+		else if data.is::<U8Vec3>() {"u8vec3"}
+		else if data.is::<U8Vec4>() {"u8vec4"}
+		else if data.is::<U16Vec1>() {"u16vec1"}
+		else if data.is::<U16Vec2>() {"u16vec2"}
+		else if data.is::<U16Vec3>() {"u16vec3"}
+		else if data.is::<U16Vec4>() {"u16vec4"}
+		else if data.is::<U32Vec1>() {"u32vec1"}
+		else if data.is::<U32Vec2>() {"u32vec2"}
+		else if data.is::<U32Vec3>() {"u32vec3"}
+		else if data.is::<U32Vec4>() {"u32vec4"}
+		else if data.is::<Quat>() {"quat"}
+		else if data.is::<DQuat>() {"dquat"}
+		else if data.is::<Mat2>() {"mat2"}
+		else if data.is::<Mat3>() {"mat3"}
+		else if data.is::<Mat4>() {"mat4"}
+		else if data.is::<Mat2x2>() {"mat2x2"}
+		else if data.is::<Mat2x3>() {"mat2x3"}
+		else if data.is::<Mat2x4>() {"mat2x4"}
+		else if data.is::<Mat3x2>() {"mat3x2"}
+		else if data.is::<Mat3x3>() {"mat3x3"}
+		else if data.is::<Mat3x4>() {"mat3x4"}
+		else if data.is::<Mat4x2>() {"mat4x2"}
+		else if data.is::<Mat4x3>() {"mat4x3"}
+		else if data.is::<Mat4x4>() {"mat4x4"}
+		else if data.is::<DMat2>() {"dmat2"}
+		else if data.is::<DMat3>() {"dmat3"}
+		else if data.is::<DMat4>() {"dmat4"}
+		else if data.is::<DMat2x2>() {"dmat2x2"}
+		else if data.is::<DMat2x3>() {"dmat2x3"}
+		else if data.is::<DMat2x4>() {"dmat2x4"}
+		else if data.is::<DMat3x2>() {"dmat3x2"}
+		else if data.is::<DMat3x3>() {"dmat3x3"}
+		else if data.is::<DMat3x4>() {"dmat3x4"}
+		else if data.is::<DMat4x2>() {"dmat4x2"}
+		else if data.is::<DMat4x3>() {"dmat4x3"}
+		else if data.is::<DMat4x4>() {"dmat4x4"}
 		else {panic!("Unsupported type of value: {:?}", data)}
 	}
 }
