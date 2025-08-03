@@ -23,6 +23,14 @@ use glm::*;
 pub trait VertexType: Copy + Clone + Sized + Default + Debug + Iterable {}
 impl<T> VertexType for T where T: Copy + Clone + Sized + Default + Debug + Iterable {}
 
+#[macro_export]
+macro_rules! derive_vertex_type {
+	($item: item) => {
+		#[derive(Iterable, Default, Debug, Clone, Copy)]
+		$item
+	};
+}
+
 pub struct Pipeline<M: Mesh> {
 	pub glcore: Rc<GLCore>,
 	name: u32,
