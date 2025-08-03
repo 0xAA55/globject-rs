@@ -406,8 +406,3 @@ impl<T: BufferVecItem> IndexMut<RangeToInclusive<usize>> for BufferVecDynamic<T>
 		&mut self.cache[r]
 	}
 }
-
-
-
-
-
