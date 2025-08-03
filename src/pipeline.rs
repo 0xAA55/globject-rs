@@ -54,17 +54,11 @@ pub struct PipelineBind<'a, M: Mesh> {
 
 impl DataGlType {
 	fn is_integer(&self) -> bool {
-		match self.data_type {
-			GL_BYTE | GL_SHORT | GL_INT | GL_UNSIGNED_BYTE | GL_UNSIGNED_SHORT | GL_UNSIGNED_INT => true,
-			_ => false,
-		}
+		matches!(self.data_type, GL_BYTE | GL_SHORT | GL_INT | GL_UNSIGNED_BYTE | GL_UNSIGNED_SHORT | GL_UNSIGNED_INT)
 	}
 
 	fn is_double(&self) -> bool {
-		match self.data_type {
-			GL_DOUBLE => true,
-			_ => false,
-		}
+		matches!(self.data_type, GL_DOUBLE)
 	}
 
 	fn size_in_bytes(&self) -> usize {

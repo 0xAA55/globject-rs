@@ -246,24 +246,15 @@ impl Drop for Shader {
 
 impl AttribType {
 	pub fn is_float(&self) -> bool {
-		match self {
-			Self::Float | Self::Vec2 | Self::Vec3 | Self::Vec4 | Self::Mat2 | Self::Mat3 | Self::Mat4 | Self::Mat2x3 | Self::Mat2x4 | Self::Mat3x2 | Self::Mat3x4 | Self::Mat4x2 | Self::Mat4x3 => true,
-			_ => false,
-		}
+		matches!(self, Self::Float | Self::Vec2 | Self::Vec3 | Self::Vec4 | Self::Mat2 | Self::Mat3 | Self::Mat4 | Self::Mat2x3 | Self::Mat2x4 | Self::Mat3x2 | Self::Mat3x4 | Self::Mat4x2 | Self::Mat4x3)
 	}
 
 	pub fn is_double(&self) -> bool {
-		match self {
-			Self::Double | Self::DVec2 | Self::DVec3 | Self::DVec4 | Self::DMat2 | Self::DMat3 | Self::DMat4 | Self::DMat2x3 | Self::DMat2x4 | Self::DMat3x2 | Self::DMat3x4 | Self::DMat4x2 | Self::DMat4x3 => true,
-			_ => false,
-		}
+		matches!(self, Self::Double | Self::DVec2 | Self::DVec3 | Self::DVec4 | Self::DMat2 | Self::DMat3 | Self::DMat4 | Self::DMat2x3 | Self::DMat2x4 | Self::DMat3x2 | Self::DMat3x4 | Self::DMat4x2 | Self::DMat4x3)
 	}
 
 	pub fn is_integer(&self) -> bool {
-		match self {
-			Self::Int | Self::IVec2 | Self::IVec3 | Self::IVec4 | Self::UInt | Self::UVec2 | Self::UVec3 | Self::UVec4 => true,
-			_ => false,
-		}
+		matches!(self, Self::Int | Self::IVec2 | Self::IVec3 | Self::IVec4 | Self::UInt | Self::UVec2 | Self::UVec3 | Self::UVec4)
 	}
 
 	pub fn get_size_and_rows(&self) -> (u32, u32) {
