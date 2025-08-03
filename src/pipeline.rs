@@ -368,12 +368,10 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 				} else {
 					glcore.glDrawArraysInstanced(mesh.get_primitive() as u32, 0, num_vertices as i32, num_instances as i32);
 				}
+			} else if let Some(element_buffer) = element_buffer {
+				glcore.glDrawElements(mesh.get_primitive() as u32, element_buffer.get_num_elements() as i32, element_buffer.get_type() as u32, null());
 			} else {
-				if let Some(element_buffer) = element_buffer {
-					glcore.glDrawElements(mesh.get_primitive() as u32, element_buffer.get_num_elements() as i32, element_buffer.get_type() as u32, null());
-				} else {
-					glcore.glDrawArrays(mesh.get_primitive() as u32, 0, num_vertices as i32);
-				}
+				glcore.glDrawArrays(mesh.get_primitive() as u32, 0, num_vertices as i32);
 			}
 		}
 
