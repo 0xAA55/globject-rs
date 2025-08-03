@@ -23,6 +23,7 @@ use glm::*;
 pub trait VertexType: Copy + Clone + Sized + Default + Debug + Iterable {}
 impl<T> VertexType for T where T: Copy + Clone + Sized + Default + Debug + Iterable {}
 
+/// Use this macro to convert your struct into `VertexType`
 #[macro_export]
 macro_rules! derive_vertex_type {
 	($item: item) => {
