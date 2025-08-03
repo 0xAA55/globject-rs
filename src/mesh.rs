@@ -156,7 +156,7 @@ impl ElementBuffer {
 
 impl ElementBufferVec {
 	pub fn get_buffer(&self) -> &Buffer {
-		&self.buffer.get_buffer()
+		self.buffer.get_buffer()
 	}
 
 	pub fn get_type(&self) -> ElementType {
@@ -174,7 +174,7 @@ impl ElementBufferVec {
 
 impl<T: BufferVecItem> ElementBufferVecDynamic<T> {
 	pub fn get_buffer(&self) -> &Buffer {
-		&self.buffer.get_buffer()
+		self.buffer.get_buffer()
 	}
 
 	pub fn get_type(&self) -> ElementType {
