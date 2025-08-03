@@ -313,7 +313,7 @@ impl<M: Mesh> Pipeline<M> {
 		else if data.is::<DMat4x2>() {"dmat4x2"}
 		else if data.is::<DMat4x3>() {"dmat4x3"}
 		else if data.is::<DMat4x4>() {"dmat4x4"}
-		else {panic!("Unsupported type of value: {:?}", data)}
+		else {panic!("Unsupported type of value: {data:?}")}
 	}
 }
 
