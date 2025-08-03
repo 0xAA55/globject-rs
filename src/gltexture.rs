@@ -426,7 +426,7 @@ impl Texture {
 			ret.create_pixel_buffer(buffer_format, buffer_format_type);
 		} else {
 			let empty_data = vec![0u8; bytes_of_texture];
-			ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap);
+			unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap)};
 		}
 		ret
 	}
@@ -537,7 +537,7 @@ impl Texture {
 	}
 
 	/// Retrieve the pixels from the texture to the specified data pointer regardless if currently is using an PBO or not
-	fn download_texture(&self, data: *mut c_void, buffer_format: PixelFormat, buffer_format_type: ComponentType) {
+	pub unsafe fn download_texture(&self, data: *mut c_void, buffer_format: PixelFormat, buffer_format_type: ComponentType) {
 		let pointer = data as *mut u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
@@ -568,7 +568,7 @@ impl Texture {
 	}
 
 	/// Load the texture with the specified data pointer regardless if currently is using an PBO or not
-	fn upload_texture(&self, data: *const c_void, buffer_format: PixelFormat, buffer_format_type: ComponentType, regen_mipmap: bool) {
+	pub unsafe fn upload_texture(&self, data: *const c_void, buffer_format: PixelFormat, buffer_format_type: ComponentType, regen_mipmap: bool) {
 		let pointer = data as *const u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
@@ -616,7 +616,7 @@ impl Texture {
 		let buffer_format = pixel_buffer.format;
 		let buffer_format_type = pixel_buffer.format_type;
 		let bind_pbo = pixel_buffer.bind();
-		self.download_texture(std::ptr::null_mut::<c_void>(), buffer_format, buffer_format_type);
+		unsafe {self.download_texture(std::ptr::null_mut::<c_void>(), buffer_format, buffer_format_type)};
 		bind_pbo.unbind();
 	}
 
@@ -626,7 +626,7 @@ impl Texture {
 		let buffer_format = pixel_buffer.format;
 		let buffer_format_type = pixel_buffer.format_type;
 		let bind_pbo = pixel_buffer.bind();
-		self.upload_texture(std::ptr::null(), buffer_format, buffer_format_type, regen_mipmap);
+		unsafe {self.upload_texture(std::ptr::null(), buffer_format, buffer_format_type, regen_mipmap)};
 		bind_pbo.unbind();
 	}
 
