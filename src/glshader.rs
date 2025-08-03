@@ -7,6 +7,7 @@ use std::{
 	collections::BTreeMap,
 	fmt::{self, Debug, Display, Formatter},
 	mem::transmute,
+	ptr::null_mut,
 	rc::Rc,
 	string::FromUtf8Error,
 };
@@ -205,8 +206,8 @@ impl Shader {
 			let mut name = vec![0i8; max_length as usize];
 			let mut size: i32 = 0;
 			let mut type_: u32 = 0;
-			self.glcore.glGetActiveAttrib(self.program, i as u32, max_length, 0 as *mut i32, &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
-			let name = String::from_utf8(unsafe{transmute(name)})?;
+			self.glcore.glGetActiveAttrib(self.program, i as u32, max_length, null_mut::<i32>(), &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
+			let name = String::from_utf8(unsafe{transmute::<Vec<i8>, Vec<u8>>(name)})?;
 			let name = name.trim_end_matches('\0').to_string();
 			let type_ = AttribType::from(type_);
 			ret.insert(name, AttribVarType{type_, size});
