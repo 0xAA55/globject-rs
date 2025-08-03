@@ -170,15 +170,15 @@ impl<M: Mesh> Pipeline<M> {
 
 	fn get_vertex_struct_member_gltype(member_type: &str) -> DataGlType {
 		match member_type {
-			"i8" => return DataGlType{data_type: GL_BYTE, size: 1, rows: 1},
-			"i16" => return DataGlType{data_type: GL_SHORT, size: 1, rows: 1},
-			"i32" => return DataGlType{data_type: GL_INT, size: 1, rows: 1},
-			"u8" => return DataGlType{data_type: GL_UNSIGNED_BYTE, size: 1, rows: 1},
-			"u16" => return DataGlType{data_type: GL_UNSIGNED_SHORT, size: 1, rows: 1},
-			"u32" => return DataGlType{data_type: GL_UNSIGNED_INT, size: 1, rows: 1},
-			"f16" => return DataGlType{data_type: GL_HALF_FLOAT, size: 1, rows: 1},
-			"f32" => return DataGlType{data_type: GL_FLOAT, size: 1, rows: 1},
-			"f64" => return DataGlType{data_type: GL_DOUBLE, size: 1, rows: 1},
+			"i8" => DataGlType{data_type: GL_BYTE, size: 1, rows: 1},
+			"i16" => DataGlType{data_type: GL_SHORT, size: 1, rows: 1},
+			"i32" => DataGlType{data_type: GL_INT, size: 1, rows: 1},
+			"u8" => DataGlType{data_type: GL_UNSIGNED_BYTE, size: 1, rows: 1},
+			"u16" => DataGlType{data_type: GL_UNSIGNED_SHORT, size: 1, rows: 1},
+			"u32" => DataGlType{data_type: GL_UNSIGNED_INT, size: 1, rows: 1},
+			"f16" => DataGlType{data_type: GL_HALF_FLOAT, size: 1, rows: 1},
+			"f32" => DataGlType{data_type: GL_FLOAT, size: 1, rows: 1},
+			"f64" => DataGlType{data_type: GL_DOUBLE, size: 1, rows: 1},
 			_ => {
 				if member_type.contains("vec") {
 					let data_type =
