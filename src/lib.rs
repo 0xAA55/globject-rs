@@ -33,7 +33,7 @@ mod tests {
 
     use crate::derive_vertex_type;
 
-    use glfw::{PWindow, Action, Context, Key, GlfwReceiver, WindowEvent, SwapInterval};
+    use glfw::*;
     use glcore::*;
     use glm::*;
 
