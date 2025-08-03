@@ -53,26 +53,23 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct AppInstance {
-        window: PWindow,
-        events: GlfwReceiver<(f64, WindowEvent)>,
-        glcore: Rc<GLCore>,
-        mesh: Rc<StaticMesh>,
-        shader: Rc<Shader>,
+    struct GlResources {
         pipeline: Rc<Pipeline<StaticMesh>>,
+        shader: Rc<Shader>,
+        mesh: Rc<StaticMesh>,
     }
 
-    impl AppInstance {
-        pub fn new() -> Result<Self, AppError> {
-            let mut glfw = match glfw::init(glfw::fail_on_errors) {
-                Ok(glfw) => glfw,
-                Err(_) => return Err(AppError::GLFWInitErr), // Due to doc, won't return `glfw::InitError::AlreadyInitialized`
-            };
-            let (mut window, events) = glfw.create_window(1024, 768, "GLFW Window", glfw::WindowMode::Windowed).ok_or(AppError::GLFWCreateWindowFailed)?;
-            window.set_key_polling(true);
-            window.make_current();
-            glfw.set_swap_interval(SwapInterval::Adaptive);
-            let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
+    #[derive(Debug)]
+    struct AppInstance {
+        gl_resources: Option<GlResources>,
+        glcore: Rc<GLCore>,
+        events: GlfwReceiver<(f64, WindowEvent)>,
+        window: PWindow,
+        glfw: Glfw,
+    }
+
+    impl GlResources {
+        fn new(glcore: Rc<GLCore>) -> Self {
             let vertices = [
                 MyVertex{position: Vec2::new(-1.0, -1.0)},
                 MyVertex{position: Vec2::new( 1.0, -1.0)},
@@ -110,30 +107,54 @@ mod tests {
                     }
                 ")
             ).unwrap());
-            let pipeline = Rc::new(Pipeline::new::<MyVertex, MyVertex>(glcore.clone(), mesh.clone(), shader.clone()));
-            Ok(Self {
-                window,
-                events,
-                glcore,
+            let pipeline = Rc::new(Pipeline::new::<MyVertex, UnusedType>(glcore.clone(), mesh.clone(), shader.clone()));
+            Self {
                 mesh,
                 shader,
                 pipeline,
+            }
+        }
+    }
+
+    impl AppInstance {
+        pub fn new() -> Result<Self, AppError> {
+            let mut glfw = match glfw::init_no_callbacks() {
+                Ok(glfw) => glfw,
+                Err(_) => return Err(AppError::GLFWInitErr), // Due to doc, won't return `glfw::InitError::AlreadyInitialized`
+            };
+            let (mut window, events) = glfw.create_window(1024, 768, "GLFW Window", glfw::WindowMode::Windowed).ok_or(AppError::GLFWCreateWindowFailed)?;
+            window.set_key_polling(true);
+            window.make_current();
+            glfw.set_swap_interval(SwapInterval::Adaptive);
+            let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
+            let gl_resources = Some(GlResources::new(glcore.clone()));
+            Ok(Self {
+                gl_resources,
+                glcore,
+                events,
+                window,
+                glfw,
             })
         }
 
         pub fn run(&mut self, timeout: f64) -> ExitCode {
-            let start_debug_time = self.window.glfw.get_time();
+            let start_debug_time = self.glfw.get_time();
             while !self.window.should_close() {
-                let time_cur_frame = self.window.glfw.get_time();
-                self.glcore.glClearColor(0.0, 0.6, 0.9, 1.0);
-                self.glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                let time_cur_frame = self.glfw.get_time();
 
-                let p_bind = self.pipeline.bind();
-                p_bind.draw(None);
-                p_bind.unbind();
+                if let Some(gl_resources) = self.gl_resources.as_ref() {
+                    let glcore = &self.glcore;
 
-                self.window.swap_buffers();
-                self.window.glfw.poll_events();
+                    glcore.glClearColor(0.0, 0.3, 0.5, 1.0);
+                    glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                    let p_bind = gl_resources.pipeline.bind();
+                    p_bind.draw(None);
+                    p_bind.unbind();
+                    self.window.swap_buffers();
+                }
+
+                self.glfw.poll_events();
                 for (_, event) in glfw::flush_messages(&self.events) {
                     match event {
                         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
