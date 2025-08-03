@@ -53,7 +53,7 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct GlResources {
+    struct Renderer {
         pipeline: Rc<Pipeline<StaticMesh>>,
         shader: Rc<Shader>,
         mesh: Rc<StaticMesh>,
@@ -61,14 +61,14 @@ mod tests {
 
     #[derive(Debug)]
     struct AppInstance {
-        gl_resources: Option<GlResources>,
+        renderer: Option<Renderer>,
         glcore: Rc<GLCore>,
         events: GlfwReceiver<(f64, WindowEvent)>,
         window: PWindow,
         glfw: Glfw,
     }
 
-    impl GlResources {
+    impl Renderer {
         fn new(glcore: Rc<GLCore>) -> Self {
             let vertices = [
                 MyVertex{position: Vec2::new(-1.0, -1.0)},
@@ -114,6 +114,15 @@ mod tests {
                 pipeline,
             }
         }
+
+        fn render(&self, glcore: &GLCore) {
+            glcore.glClearColor(0.0, 0.3, 0.5, 1.0);
+            glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            let p_bind = self.pipeline.bind();
+            p_bind.draw(None);
+            p_bind.unbind();
+        }
     }
 
     impl AppInstance {
@@ -127,9 +136,9 @@ mod tests {
             window.make_current();
             glfw.set_swap_interval(SwapInterval::Adaptive);
             let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
-            let gl_resources = Some(GlResources::new(glcore.clone()));
+            let renderer = Some(Renderer::new(glcore.clone()));
             Ok(Self {
-                gl_resources,
+                renderer,
                 glcore,
                 events,
                 window,
@@ -142,15 +151,8 @@ mod tests {
             while !self.window.should_close() {
                 let time_cur_frame = self.glfw.get_time();
 
-                if let Some(gl_resources) = self.gl_resources.as_ref() {
-                    let glcore = &self.glcore;
-
-                    glcore.glClearColor(0.0, 0.3, 0.5, 1.0);
-                    glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-                    let p_bind = gl_resources.pipeline.bind();
-                    p_bind.draw(None);
-                    p_bind.unbind();
+                if let Some(renderer) = self.renderer.as_ref() {
+                    renderer.render(&self.glcore);
                     self.window.swap_buffers();
                 }
 
