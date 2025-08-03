@@ -19,7 +19,11 @@ jobs:
     - name: Install GLFW dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libglfw3-dev libgl-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev
+        sudo apt-get install -y libglfw3-dev libgl-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev nasm
+    - name: Install turbojpeg dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y nasm
     - name: Install XVFB and dependencies
       if: runner.os == 'Linux'
       run: |
