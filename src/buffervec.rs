@@ -112,13 +112,13 @@ impl BufferVec {
 	}
 }
 
-impl<'a> From<BufferVec> for Buffer {
+impl From<BufferVec> for Buffer {
 	fn from(val: BufferVec) -> Self {
 		val.buffer
 	}
 }
 
-impl<'a> From<Buffer> for BufferVec {
+impl From<Buffer> for BufferVec {
 	fn from(val: Buffer) -> Self {
 		BufferVec {
 			glcore: val.glcore.clone(),
