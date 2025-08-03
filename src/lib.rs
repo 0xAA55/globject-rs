@@ -16,6 +16,13 @@ extern crate struct_iterable;
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        ffi::c_void,
+        mem::size_of_val,
+        process::ExitCode,
+        rc::Rc,
+    };
+
     use super::gltexture::*;
     use super::glframebuffer::*;
     use super::glshader::*;
@@ -24,12 +31,6 @@ mod tests {
     use super::mesh::*;
     use super::pipeline::*;
 
-    use std::{
-        ffi::c_void,
-        mem::size_of_val,
-        process::ExitCode,
-        rc::Rc,
-    };
     use glfw::{PWindow, Action, Context, Key, GlfwReceiver, WindowEvent, SwapInterval};
     use glcore::*;
     use glm::*;
