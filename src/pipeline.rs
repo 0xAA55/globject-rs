@@ -63,7 +63,7 @@ impl DataGlType {
 
 	fn size_in_bytes(&self) -> usize {
 		match self.data_type {
-			GL_BYTE | GL_UNSIGNED_BYTE => 1usize * self.size as usize * self.rows as usize,
+			GL_BYTE | GL_UNSIGNED_BYTE => (self.size as usize) * self.rows as usize,
 			GL_SHORT | GL_UNSIGNED_SHORT | GL_HALF_FLOAT => 2usize * self.size as usize * self.rows as usize,
 			GL_INT | GL_UNSIGNED_INT | GL_FLOAT => 4usize * self.size as usize * self.rows as usize,
 			GL_DOUBLE => 8usize * self.size as usize * self.rows as usize,
