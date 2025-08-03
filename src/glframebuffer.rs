@@ -53,7 +53,7 @@ impl<'a> FramebufferBind<'a> {
 	/// Setup the framebuffer, apply `draw_targets`
 	pub fn setup(&self, program: &Shader) {
 		let draw_targets = &self.framebuffer.draw_targets;
-		assert!(draw_targets.len() > 0);
+		assert!(!draw_targets.is_empty());
 		let glcore = self.framebuffer.glcore.clone();
 		let mut draw_buffers: Vec<u32> = Vec::with_capacity(draw_targets.len());
 		let mut max_width: u32 = 0;
