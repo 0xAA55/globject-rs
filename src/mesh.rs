@@ -402,11 +402,7 @@ impl Mesh for StaticMesh {
 	}
 
 	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
-		if let Some(buffer) = &self.element_buffer {
-			Some(ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
-		} else {
-			None
-		}
+		self.element_buffer.as_ref().map(|buffer| ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
 	}
 
 	fn get_instance_buffer(&self) -> Option<&Buffer> {
@@ -440,11 +436,7 @@ impl Mesh for EditableMesh {
 	}
 	
 	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
-		if let Some(buffer) = &self.element_buffer {
-			Some(ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
-		} else {
-			None
-		}
+		self.element_buffer.as_ref().map(|buffer| ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
 	}
 
 	fn get_instance_buffer(&self) -> Option<&Buffer> {
@@ -478,11 +470,7 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh 
 	}
 	
 	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
-		if let Some(buffer) = &self.element_buffer {
-			Some(ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
-		} else {
-			None
-		}
+		self.element_buffer.as_ref().map(|buffer| ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
 	}
 
 	fn get_instance_buffer(&self) -> Option<&Buffer> {

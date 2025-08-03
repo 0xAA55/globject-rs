@@ -375,9 +375,9 @@ impl<'a, M: Mesh> PipelineBind<'a, M> {
 			}
 		}
 
-		e_bind.map(|b|b.unbind());
+		if let Some(b) = e_bind { b.unbind() }
 		program.unuse();
-		fbo_bind.map(|b|b.unbind());
+		if let Some(b) = fbo_bind { b.unbind() }
 	}
 
 	/// Unbind the VAO by utilizing the RAII rules.
