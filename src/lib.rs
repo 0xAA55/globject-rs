@@ -137,7 +137,7 @@ mod tests {
             })
         }
 
-        pub fn run(&mut self, timeout: f64) -> ExitCode {
+        pub fn run(&mut self, timeout: Option<f64>) -> ExitCode {
             let start_debug_time = self.glfw.get_time();
             while !self.window.should_close() {
                 let time_cur_frame = self.glfw.get_time();
@@ -164,7 +164,7 @@ mod tests {
                     }
                 }
 
-                if timeout > 0.0 {
+                if let Some(timeout) = timeout {
                     if time_cur_frame - start_debug_time >= timeout {
                         self.window.set_should_close(true)
                     }
@@ -185,6 +185,6 @@ mod tests {
                 return ExitCode::from(2)
             }
         };
-        test_app.run(DEBUG_TIME)
+        test_app.run(Some(DEBUG_TIME))
     }
 }
