@@ -414,4 +414,6 @@ impl<M: Mesh> Debug for Pipeline<M> {
 	}
 }
 
-
+derive_vertex_type! {
+	pub struct UnusedType {}
+}
