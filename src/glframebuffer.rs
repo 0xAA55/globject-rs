@@ -37,6 +37,7 @@ impl Framebuffer {
 		}
 	}
 
+	/// Utilize the RAII rules to manage binding states.
 	pub fn bind<'a>(&'a self) -> FramebufferBind<'a> {
 		FramebufferBind::new(self)
 	}
