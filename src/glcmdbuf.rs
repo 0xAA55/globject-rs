@@ -5,7 +5,7 @@ use std::{
 	fmt::Debug,
 };
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DrawArrayCommand {
 	vertex_count: u32,
 	instance_count: u32,
@@ -13,7 +13,7 @@ pub struct DrawArrayCommand {
 	base_instance: u32,
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DrawElementsCommand {
 	element_count: u32,
 	instance_count: u32,
