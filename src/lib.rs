@@ -86,25 +86,25 @@ mod tests {
             let mesh = Rc::new(StaticMesh::new(glcore.clone(), PrimitiveMode::Triangles, vertex_buffer, Some(element_buffer), None, None));
             let shader = Rc::new(Shader::new(glcore.clone(),
                 Some("
-                    #version 330\n
+#version 330\n
 
-                    in vec2 position;
+in vec2 position;
 
-                    void main()
-                    {
-                        gl_Position = vec4(position, 0.0, 1.0);
-                    }
+void main()
+{
+    gl_Position = vec4(position, 0.0, 1.0);
+}
                 "),
                 None,
                 Some("
-                    #version 330\n
+#version 330\n
 
-                    out vec4 Color;
+out vec4 Color;
 
-                    void main()
-                    {
-                        Color = vec4(0.0, 0.0, 0.5, 1.0);
-                    }
+void main()
+{
+    Color = vec4(0.0, 0.0, 0.5, 1.0);
+}
                 ")
             ).unwrap());
             let pipeline = Rc::new(Pipeline::new::<MyVertex, UnusedType>(glcore.clone(), mesh.clone(), shader.clone()));
