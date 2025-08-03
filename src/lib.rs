@@ -31,15 +31,18 @@ mod tests {
     use super::mesh::*;
     use super::pipeline::*;
 
+    use crate::derive_vertex_type;
+
     use glfw::{PWindow, Action, Context, Key, GlfwReceiver, WindowEvent, SwapInterval};
     use glcore::*;
     use glm::*;
 
     use struct_iterable::Iterable;
 
-    #[derive(Iterable, Default, Debug, Clone, Copy)]
-    pub struct MyVertex {
-        position: Vec2,
+    derive_vertex_type! {
+        pub struct MyVertex {
+            position: Vec2,
+        }
     }
 
     #[derive(Debug)]
