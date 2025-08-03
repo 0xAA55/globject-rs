@@ -110,7 +110,7 @@ impl<M: Mesh> Pipeline<M> {
 
 		if let Some(ib) = self.mesh.get_instance_buffer() {
 			let ib_bind = ib.bind();
-			self.describe::<V>(&active_attribs, 1);
+			self.describe::<I>(&active_attribs, 1);
 			ib_bind.unbind();
 		}
 
