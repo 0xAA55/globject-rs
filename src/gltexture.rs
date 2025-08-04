@@ -430,6 +430,16 @@ impl PixelBuffer {
 		self.buffer.get_buffer()
 	}
 
+	/// Get the format
+	pub fn get_format(&self) -> PixelFormat {
+		self.format
+	}
+
+	/// Get the component type
+	pub fn get_format_type(&self) -> ComponentType {
+		self.format_type
+	}
+
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
 	pub fn bind<'a>(&'a self) -> BufferBind<'a> {
 		self.buffer.bind()
