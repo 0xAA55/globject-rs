@@ -11,7 +11,7 @@ use std::{
 	fmt::{self, Debug, Formatter},
 	mem::size_of_val,
 	path::Path,
-	ptr::copy_nonoverlapping,
+	ptr::{null, copy_nonoverlapping},
 	rc::Rc,
 };
 use image::{ImageReader, Pixel, ImageBuffer, RgbImage, DynamicImage};
@@ -232,7 +232,7 @@ pub enum LoadImageError {
 	IOError(std::io::Error),
 	TurboJpegError(turbojpeg::Error),
 	ImageError(image::ImageError),
-	UnsupportedImageType,
+	UnsupportedImageType(String),
 }
 
 impl From<std::io::Error> for LoadImageError {
@@ -272,6 +272,117 @@ impl TextureFormat {
 		size += data as usize;
 		size
 	}
+
+	pub fn from_format_and_type(format: PixelFormat, format_type: ComponentType) -> Option<Self> {
+		match format_type {
+			ComponentType::U8_332 => Some(Self::R3g3b2),
+			ComponentType::U16_4444 => Some(Self::Rgba4),
+			ComponentType::U16_5551 => Some(Self::Rgb5a1),
+			ComponentType::U32_8888 => Some(Self::Rgba8),
+			ComponentType::U32_10_10_10_2 => Some(Self::Rgb10a2),
+			ComponentType::I8 => match format {
+				PixelFormat::Red =>  Some(Self::R8i),
+				PixelFormat::Rg =>   Some(Self::Rg8i),
+				PixelFormat::Rgb =>  Some(Self::Rgb8i),
+				PixelFormat::Rgba => Some(Self::Rgba8i),
+				_ => None,
+			}
+			ComponentType::U8 => match format {
+				PixelFormat::Red =>  Some(Self::R8ui),
+				PixelFormat::Rg =>   Some(Self::Rg8ui),
+				PixelFormat::Rgb =>  Some(Self::Rgb8ui),
+				PixelFormat::Rgba => Some(Self::Rgba8ui),
+				_ => None,
+			}
+			ComponentType::I16 => match format {
+				PixelFormat::Red =>  Some(Self::R16i),
+				PixelFormat::Rg =>   Some(Self::Rg16i),
+				PixelFormat::Rgb =>  Some(Self::Rgb16i),
+				PixelFormat::Rgba => Some(Self::Rgba16i),
+				_ => None,
+			}
+			ComponentType::U16 => match format {
+				PixelFormat::Red =>  Some(Self::R16ui),
+				PixelFormat::Rg =>   Some(Self::Rg16ui),
+				PixelFormat::Rgb =>  Some(Self::Rgb16ui),
+				PixelFormat::Rgba => Some(Self::Rgba16ui),
+				_ => None,
+			}
+			ComponentType::I32 => match format {
+				PixelFormat::Red =>  Some(Self::R32i),
+				PixelFormat::Rg =>   Some(Self::Rg32i),
+				PixelFormat::Rgb =>  Some(Self::Rgb32i),
+				PixelFormat::Rgba => Some(Self::Rgba32i),
+				_ => None,
+			}
+			ComponentType::U32 => match format {
+				PixelFormat::Red =>  Some(Self::R32ui),
+				PixelFormat::Rg =>   Some(Self::Rg32ui),
+				PixelFormat::Rgb =>  Some(Self::Rgb32ui),
+				PixelFormat::Rgba => Some(Self::Rgba32ui),
+				_ => None,
+			}
+			ComponentType::F32 => match format {
+				PixelFormat::Red =>  Some(Self::R32f),
+				PixelFormat::Rg =>   Some(Self::Rg32f),
+				PixelFormat::Rgb =>  Some(Self::Rgb32f),
+				PixelFormat::Rgba => Some(Self::Rgba32f),
+				_ => None,
+			}
+			_ => None
+		}
+	}
+}
+
+impl ComponentType {
+	pub fn from_typename(typename: &str) -> Self {
+		match typename {
+			"u8"  => Self::U8,
+			"u16" => Self::U16,
+			"u32" => Self::U32,
+			"i8"  => Self::I8,
+			"i16" => Self::I16,
+			"i32" => Self::I32,
+			"f16" => Self::F16,
+			"f32" => Self::F32,
+			_ => panic!("Currently only supports: u8, u16, u32, i8, i16, i32, f16, f32."),
+		}
+	}
+}
+
+pub fn get_format_and_type_from_image_pixel<P: Pixel>(format: &mut PixelFormat, format_type: &mut ComponentType) -> Result<(), LoadImageError> {
+	*format_type = match type_name::<P::Subpixel>() {
+		"u8" =>  ComponentType::U8,
+		"u16" => ComponentType::U16,
+		"i8" =>  ComponentType::I8,
+		"i16" => ComponentType::I16,
+		"f16" => ComponentType::F16,
+		"f32" => ComponentType::F32,
+		"i32" => ComponentType::I32,
+		"u32" => ComponentType::U32,
+		other => return Err(LoadImageError::UnsupportedImageType(format!("Unknown subpixel type `{other}`"))),
+	};
+	*format = match format_type {
+		ComponentType::I32 | ComponentType::U32 => {
+			match P::CHANNEL_COUNT {
+				1 => PixelFormat::RedInteger,
+				2 => PixelFormat::RgInteger,
+				3 => PixelFormat::RgbInteger,
+				4 => PixelFormat::RgbaInteger,
+				o => return Err(LoadImageError::UnsupportedImageType(format!("Unknown channel count ({o}) of the `ImageBuffer`"))),
+			}
+		}
+		_ => {
+			match P::CHANNEL_COUNT {
+				1 => PixelFormat::Red,
+				2 => PixelFormat::Rg,
+				3 => PixelFormat::Rgb,
+				4 => PixelFormat::Rgba,
+				o => return Err(LoadImageError::UnsupportedImageType(format!("Unknown channel count ({o}) of the `ImageBuffer`"))),
+			}
+		}
+	};
+	Ok(())
 }
 
 impl PixelBuffer {
@@ -316,37 +427,9 @@ impl PixelBuffer {
 	/// Create from an ImageBuffer
 	pub fn from_image<P: Pixel>(glcore: Rc<GLCore>, img: &ImageBuffer<P, Vec<P::Subpixel>>) -> Self {
 		let container = img.as_raw();
-		let format_type = match type_name::<P::Subpixel>() {
-			"u8" => ComponentType::U8,
-			"u16" => ComponentType::U16,
-			"i8" => ComponentType::I8,
-			"i16" => ComponentType::I16,
-			"f16" => ComponentType::F16,
-			"f32" => ComponentType::F32,
-			"i32" => ComponentType::I32,
-			"u32" => ComponentType::U32,
-			other => panic!("Unknown subpixel type `{other}`"),
-		};
-		let format = match format_type {
-			ComponentType::I32 | ComponentType::U32 => {
-				match P::CHANNEL_COUNT {
-					1 => PixelFormat::RedInteger,
-					2 => PixelFormat::RgInteger,
-					3 => PixelFormat::RgbInteger,
-					4 => PixelFormat::RgbaInteger,
-					_ => panic!("Unknown channel count ({}) of the `ImageBuffer`", P::CHANNEL_COUNT),
-				}
-			}
-			_ => {
-				match P::CHANNEL_COUNT {
-					1 => PixelFormat::Red,
-					2 => PixelFormat::Rg,
-					3 => PixelFormat::Rgb,
-					4 => PixelFormat::Rgba,
-					_ => panic!("Unknown channel count ({}) of the `ImageBuffer`", P::CHANNEL_COUNT),
-				}
-			}
-		};
+		let mut format = PixelFormat::Rgb;
+		let mut format_type = ComponentType::U8;
+		get_format_and_type_from_image_pixel::<P>(&mut format, &mut format_type).unwrap();
 		Self::new(glcore, img.width(), img.height(), 1, size_of_val(&container[..]), format, format_type, Some(container.as_ptr() as *const c_void))
 	}
 
@@ -371,7 +454,7 @@ impl PixelBuffer {
 					DynamicImage::ImageRgba16(img) => Ok(Self::from_image(glcore, &img)),
 					DynamicImage::ImageRgb32F(img) => Ok(Self::from_image(glcore, &img)),
 					DynamicImage::ImageRgba32F(img) => Ok(Self::from_image(glcore, &img)),
-					_ => Err(LoadImageError::UnsupportedImageType),
+					_ => Err(LoadImageError::UnsupportedImageType(format!("Unsupported image type when loading pixel buffer from {path:?}"))),
 				}
 			}
 		}
@@ -452,48 +535,43 @@ impl Texture {
 		self.name
 	}
 
-	fn new(glcore: Rc<GLCore>,
+	fn set_texture_params(
+			glcore: Rc<GLCore>,
+			name: u32,
 			dim: TextureDimension,
-			format: TextureFormat,
 			width: u32,
-			mut height: u32,
-			mut depth: u32,
+			height: &mut u32,
+			depth: &mut u32,
+			size_mod: &mut usize,
 			wrapping_s: TextureWrapping,
 			wrapping_t: TextureWrapping,
 			wrapping_r: TextureWrapping,
-			has_mipmap: bool,
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
-			buffering: bool,
-			buffer_format: PixelFormat,
-			buffer_format_type: ComponentType,
-			initial_data: Option<*const c_void>,
-		) -> Self {
-		let mut name: u32 = 0;
-		glcore.glGenTextures(1, &mut name as *mut _);
+		) -> TextureTarget
+	{
 		let target;
-		let size_mod;
 		match dim {
 			TextureDimension::Tex1d => {
 				target = TextureTarget::Tex1d;
-				height = 1;
-				depth = 1;
-				size_mod = 1;
+				*height = 1;
+				*depth = 1;
+				*size_mod = 1;
 			}
 			TextureDimension::Tex2d => {
 				target = TextureTarget::Tex2d;
-				depth = 1;
-				size_mod = 1;
+				*depth = 1;
+				*size_mod = 1;
 			}
 			TextureDimension::Tex3d => {
 				target = TextureTarget::Tex3d;
-				size_mod = 1;
+				*size_mod = 1;
 			}
 			TextureDimension::TexCube => {
 				target = TextureTarget::TexCube;
-				height = width;
-				depth = 1;
-				size_mod = 6;
+				*height = width;
+				*depth = 1;
+				*size_mod = 6;
 			}
 		}
 		glcore.glBindTexture(target as u32, name);
@@ -514,11 +592,33 @@ impl Texture {
 		}
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MAG_FILTER, mag_filter as i32);
 		glcore.glTexParameteri(target as u32, GL_TEXTURE_MIN_FILTER, min_filter as i32);
+		target
+	}
+
+	/// Create an unallocated texture for further initialization
+	fn new_unallocates(
+			glcore: Rc<GLCore>,
+			dim: TextureDimension,
+			format: TextureFormat,
+			width: u32,
+			mut height: u32,
+			mut depth: u32,
+			wrapping_s: TextureWrapping,
+			wrapping_t: TextureWrapping,
+			wrapping_r: TextureWrapping,
+			has_mipmap: bool,
+			mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+		) -> Self {
+		let mut name: u32 = 0;
+		glcore.glGenTextures(1, &mut name as *mut _);
+		let mut size_mod = 1;
+		let target = Self::set_texture_params(glcore.clone(), name, dim, width, &mut height, &mut depth, &mut size_mod, wrapping_s, wrapping_t, wrapping_r, mag_filter, min_filter);
 		let pixel_bits = format.bits_of_pixel(glcore.as_ref(), target);
 		let pitch = ((pixel_bits - 1) / 32 + 1) * 4;
 		let bytes_of_face = pitch * height as usize * depth as usize;
 		let bytes_of_texture = bytes_of_face * size_mod;
-		let mut ret = Self {
+		Self {
 			glcore,
 			name,
 			dim,
@@ -532,14 +632,56 @@ impl Texture {
 			bytes_of_texture,
 			bytes_of_face,
 			pixel_buffer: None,
-		};
+		}
+	}
+
+	/// Create from a pixel buffer
+	fn new_from_pixel_buffer(
+			glcore: Rc<GLCore>,
+			dim: TextureDimension,
+			format: TextureFormat,
+			width: u32,
+			height: u32,
+			depth: u32,
+			wrapping_s: TextureWrapping,
+			wrapping_t: TextureWrapping,
+			wrapping_r: TextureWrapping,
+			has_mipmap: bool,
+			mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+			pixel_buffer: PixelBuffer,
+		) -> Self {
+		let ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter);
+		unsafe {ret.upload_texture(null(), pixel_buffer.get_format(), pixel_buffer.get_format_type(), has_mipmap)};
+		ret
+	}
+
+	/// Create without pixel buffer
+	fn new(glcore: Rc<GLCore>,
+			dim: TextureDimension,
+			format: TextureFormat,
+			width: u32,
+			height: u32,
+			depth: u32,
+			wrapping_s: TextureWrapping,
+			wrapping_t: TextureWrapping,
+			wrapping_r: TextureWrapping,
+			has_mipmap: bool,
+			mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+			buffering: bool,
+			buffer_format: PixelFormat,
+			buffer_format_type: ComponentType,
+			initial_data: Option<*const c_void>,
+		) -> Self {
+		let mut ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter);
 		if buffering {
 			ret.create_pixel_buffer(buffer_format, buffer_format_type, initial_data);
 		} else {
 			if let Some(data_pointer) = initial_data {
 				unsafe {ret.upload_texture(data_pointer, buffer_format, buffer_format_type, has_mipmap)};
 			} else {
-				let empty_data = vec![0u8; bytes_of_texture];
+				let empty_data = vec![0u8; ret.bytes_of_texture];
 				unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap)};
 			}
 		}
@@ -618,6 +760,75 @@ impl Texture {
 		) -> Self {
 		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
 	}
+
+	/// Create a texture by an image
+	pub fn from_image<P: Pixel>(
+			glcore: Rc<GLCore>,
+			dim: TextureDimension,
+			img: &ImageBuffer<P, Vec<P::Subpixel>>,
+			wrapping_s: TextureWrapping,
+			wrapping_t: TextureWrapping,
+			has_mipmap: bool,
+			mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+		) -> Self {
+		let mut buffer_format = PixelFormat::Rgb;
+		let mut buffer_format_type = ComponentType::U8;
+		get_format_and_type_from_image_pixel::<P>(&mut buffer_format, &mut buffer_format_type).unwrap();
+		let format = TextureFormat::from_format_and_type(buffer_format, buffer_format_type).unwrap();
+		let pixel_buffer = PixelBuffer::from_image(glcore.clone(), img);
+		match dim {
+			TextureDimension::Tex1d => {
+				assert_eq!(img.height(), 1);
+				Self::new_from_pixel_buffer(glcore, dim, format, img.width(), 1, 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, pixel_buffer)
+			}
+			TextureDimension::Tex2d => {
+				Self::new_from_pixel_buffer(glcore, dim, format, img.width(), img.height(), 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, pixel_buffer)
+			}
+			TextureDimension::TexCube => {
+				assert_eq!(img.width() * 6, img.height());
+				Self::new_from_pixel_buffer(glcore, dim, format, img.width(), img.width(), 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, pixel_buffer)
+			}
+			other => panic!("Could not create a {other:?} texture from a `ImageBuffer`")
+		}
+	}
+
+	/// Create a texture from file
+	pub fn from_file(
+			glcore: Rc<GLCore>,
+			path: &Path,
+			dim: TextureDimension,
+			wrapping_s: TextureWrapping,
+			wrapping_t: TextureWrapping,
+			has_mipmap: bool,
+			mag_filter: SamplerMagFilter,
+			min_filter: SamplerFilter,
+		) -> Result<Self, LoadImageError> {
+		let ext = path.extension().map_or_else(|| String::new(), |ext| OsStr::to_str(ext).unwrap().to_lowercase());
+		match &ext[..] {
+			"jpg" | "jpeg" => {
+				let image_data = std::fs::read(path)?;
+				let img: RgbImage = turbojpeg::decompress_image(&image_data)?;
+				Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter))
+			}
+			_ => {
+				match ImageReader::open(path)?.decode()? {
+					DynamicImage::ImageLuma8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageLumaA8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageRgb8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageRgba8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageLuma16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageLumaA16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageRgb16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageRgba16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageRgb32F(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					DynamicImage::ImageRgba32F(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
+					_ => Err(LoadImageError::UnsupportedImageType(format!("Unsupported image type when loading texture from {path:?}"))),
+				}
+			}
+		}
+	}
+
 
 	/// Bind the texture, use the RAII system to manage the binding state.
 	pub fn bind<'a>(&'a self) -> TextureBind<'a> {
@@ -805,17 +1016,6 @@ impl Drop for TextureBind<'_> {
 	}
 }
 
-impl Debug for TextureDimension {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		match self {
-			Self::Tex1d => write!(f, "1D"),
-			Self::Tex2d => write!(f, "2D"),
-			Self::Tex3d => write!(f, "3D"),
-			Self::TexCube => write!(f, "CubeMap"),
-		}
-	}
-}
-
 impl Debug for Texture {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Texture")
@@ -828,6 +1028,17 @@ impl Debug for Texture {
 		.field("has_mipmap", &self.has_mipmap)
 		.field("pixel_buffer", &self.pixel_buffer)
 		.finish()
+	}
+}
+
+impl Debug for TextureDimension {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::Tex1d => write!(f, "1D"),
+			Self::Tex2d => write!(f, "2D"),
+			Self::Tex3d => write!(f, "3D"),
+			Self::TexCube => write!(f, "CubeMap"),
+		}
 	}
 }
 
