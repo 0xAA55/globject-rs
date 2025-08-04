@@ -106,8 +106,8 @@ impl BufferVec {
 		self.buffer.bind()
 	}
 
-	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	pub fn bind_to<'a>(&'a mut self, target: BufferTarget) -> BufferBind<'a> {
+	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
+	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
 		self.buffer.bind_to(target)
 	}
 }
@@ -257,8 +257,8 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 		self.buffer.bind()
 	}
 
-	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	pub fn bind_to<'a>(&'a mut self, target: BufferTarget) -> BufferBind<'a> {
+	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
+	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
 		self.buffer.bind_to(target)
 	}
 }

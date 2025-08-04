@@ -145,9 +145,8 @@ impl Buffer {
 		BufferBind::new(self, self.target)
 	}
 
-	/// Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	pub fn bind_to<'a>(&'a mut self, target: BufferTarget) -> BufferBind<'a> {
-		self.target = target;
+	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state.
+	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
 		BufferBind::new(&*self, target)
 	}
 }
