@@ -256,13 +256,19 @@ impl PixelBuffer {
 			depth: u32,
 			size_in_bytes: usize,
 			format: PixelFormat,
-			format_type: ComponentType
+			format_type: ComponentType,
+			initial_data: Option<*const c_void>,
 		) -> Self {
 		let pixel_size = Self::size_of_pixel(format, format_type);
 		let pitch = ((width as usize * pixel_size - 1) / 4 + 1) * 4;
 		let pitch_wh = pitch * height as usize;
-		let empty_data = vec![0u8; size_in_bytes];
-		let buffer = Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, empty_data.as_ptr() as *const c_void);
+		let buffer = match initial_data {
+			Some(initial_data) => Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, initial_data),
+			None => {
+				let empty_data = vec![0u8; size_in_bytes];
+				Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, empty_data.as_ptr() as *const c_void)
+			}
+		};
 		let buffer = BufferVec::new(glcore.clone(), buffer);
 		Self {
 			buffer,
@@ -357,6 +363,7 @@ impl Texture {
 			buffering: bool,
 			buffer_format: PixelFormat,
 			buffer_format_type: ComponentType,
+			initial_data: Option<*const c_void>,
 		) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenTextures(1, &mut name as *mut _);
@@ -423,10 +430,14 @@ impl Texture {
 			pixel_buffer: None,
 		};
 		if buffering {
-			ret.create_pixel_buffer(buffer_format, buffer_format_type);
+			ret.create_pixel_buffer(buffer_format, buffer_format_type, initial_data);
 		} else {
-			let empty_data = vec![0u8; bytes_of_texture];
-			unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap)};
+			if let Some(data_pointer) = initial_data {
+				unsafe {ret.upload_texture(data_pointer, buffer_format, buffer_format_type, has_mipmap)};
+			} else {
+				let empty_data = vec![0u8; bytes_of_texture];
+				unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap)};
+			}
 		}
 		ret
 	}
@@ -442,9 +453,10 @@ impl Texture {
 			min_filter: SamplerFilter,
 			buffering: bool,
 			buffer_format: PixelFormat,
-			buffer_format_type: ComponentType
+			buffer_format_type: ComponentType,
+			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::Tex1d, format, width, 1, 1, wrapping_s, TextureWrapping::Repeat, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
+		Self::new(glcore, TextureDimension::Tex1d, format, width, 1, 1, wrapping_s, TextureWrapping::Repeat, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
 	}
 
 	/// Create an 2D texture
@@ -460,9 +472,10 @@ impl Texture {
 			min_filter: SamplerFilter,
 			buffering: bool,
 			buffer_format: PixelFormat,
-			buffer_format_type: ComponentType
+			buffer_format_type: ComponentType,
+			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::Tex2d, format, width, height, 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
+		Self::new(glcore, TextureDimension::Tex2d, format, width, height, 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
 	}
 
 	/// Create an 3D texture
@@ -480,9 +493,10 @@ impl Texture {
 			min_filter: SamplerFilter,
 			buffering: bool,
 			buffer_format: PixelFormat,
-			buffer_format_type: ComponentType
+			buffer_format_type: ComponentType,
+			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::Tex3d, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
+		Self::new(glcore, TextureDimension::Tex3d, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
 	}
 
 	/// Create an cube map texture
@@ -495,9 +509,10 @@ impl Texture {
 			min_filter: SamplerFilter,
 			buffering: bool,
 			buffer_format: PixelFormat,
-			buffer_format_type: ComponentType
+			buffer_format_type: ComponentType,
+			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type)
+		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
 	}
 
 	/// Bind the texture, use the RAII system to manage the binding state.
@@ -631,8 +646,8 @@ impl Texture {
 	}
 
 	/// Create the PBO if not created early
-	pub fn create_pixel_buffer(&mut self, buffer_format: PixelFormat, buffer_format_type: ComponentType) {
-		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_format, buffer_format_type))
+	pub fn create_pixel_buffer(&mut self, buffer_format: PixelFormat, buffer_format_type: ComponentType, initial_data: Option<*const c_void>) {
+		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_format, buffer_format_type, initial_data))
 	}
 
 	/// Discard the PBO if not necessarily need it
