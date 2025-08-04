@@ -52,8 +52,7 @@ pub const CUBE_FACE_TARGETS: [CubeMapFaces; 6] = [
 	CubeMapFaces::TexCubeNegZ,
 ];
 
-#[derive(Clone, Copy, PartialEq
-         )]
+#[derive(Clone, Copy, PartialEq)]
 pub enum TextureFormat {
 	Depth = GL_DEPTH_COMPONENT as isize,
 	DepthStencil = GL_DEPTH_STENCIL as isize,
