@@ -6,10 +6,15 @@ use glcore::*;
 use crate::glbuffer::*;
 use crate::buffervec::*;
 use std::{
-	ffi::c_void,
+	any::type_name,
+	ffi::{OsStr, c_void},
 	fmt::{self, Debug, Formatter},
+	mem::size_of_val,
+	path::Path,
+	ptr::copy_nonoverlapping,
 	rc::Rc,
 };
+use image::{ImageReader, Pixel, ImageBuffer, RgbImage, DynamicImage};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureDimension {
@@ -222,6 +227,32 @@ pub struct TextureBind<'a> {
 	target: TextureTarget,
 }
 
+#[derive(Debug)]
+pub enum LoadImageError {
+	IOError(std::io::Error),
+	TurboJpegError(turbojpeg::Error),
+	ImageError(image::ImageError),
+	UnsupportedImageType,
+}
+
+impl From<std::io::Error> for LoadImageError {
+	fn from(err: std::io::Error) -> Self {
+		Self::IOError(err)
+	}
+}
+
+impl From<turbojpeg::Error> for LoadImageError {
+	fn from(err: turbojpeg::Error) -> Self {
+		Self::TurboJpegError(err)
+	}
+}
+
+impl From<image::ImageError> for LoadImageError {
+	fn from(err: image::ImageError) -> Self {
+		Self::ImageError(err)
+	}
+}
+
 impl TextureFormat {
 	pub fn bits_of_pixel(&self, glcore: &GLCore, target: TextureTarget) -> usize {
 		let target = target as u32;
@@ -279,6 +310,70 @@ impl PixelBuffer {
 			pitch_wh,
 			format,
 			format_type,
+		}
+	}
+
+	/// Create from an ImageBuffer
+	pub fn from_image<P: Pixel>(glcore: Rc<GLCore>, img: &ImageBuffer<P, Vec<P::Subpixel>>) -> Self {
+		let container = img.as_raw();
+		let format_type = match type_name::<P::Subpixel>() {
+			"u8" => ComponentType::U8,
+			"u16" => ComponentType::U16,
+			"i8" => ComponentType::I8,
+			"i16" => ComponentType::I16,
+			"f16" => ComponentType::F16,
+			"f32" => ComponentType::F32,
+			"i32" => ComponentType::I32,
+			"u32" => ComponentType::U32,
+			other => panic!("Unknown subpixel type `{other}`"),
+		};
+		let format = match format_type {
+			ComponentType::I32 | ComponentType::U32 => {
+				match P::CHANNEL_COUNT {
+					1 => PixelFormat::RedInteger,
+					2 => PixelFormat::RgInteger,
+					3 => PixelFormat::RgbInteger,
+					4 => PixelFormat::RgbaInteger,
+					_ => panic!("Unknown channel count ({}) of the `ImageBuffer`", P::CHANNEL_COUNT),
+				}
+			}
+			_ => {
+				match P::CHANNEL_COUNT {
+					1 => PixelFormat::Red,
+					2 => PixelFormat::Rg,
+					3 => PixelFormat::Rgb,
+					4 => PixelFormat::Rgba,
+					_ => panic!("Unknown channel count ({}) of the `ImageBuffer`", P::CHANNEL_COUNT),
+				}
+			}
+		};
+		Self::new(glcore, img.width(), img.height(), 1, size_of_val(&container[..]), format, format_type, Some(container.as_ptr() as *const c_void))
+	}
+
+	/// Create from texture file
+	pub fn from_file(glcore: Rc<GLCore>, path: &Path) -> Result<Self, LoadImageError> {
+		let ext = path.extension().map_or_else(|| String::new(), |ext| OsStr::to_str(ext).unwrap().to_lowercase());
+		match &ext[..] {
+			"jpg" | "jpeg" => {
+				let image_data = std::fs::read(path)?;
+				let img: RgbImage = turbojpeg::decompress_image(&image_data)?;
+				Ok(Self::from_image(glcore, &img))
+			}
+			_ => {
+				match ImageReader::open(path)?.decode()? {
+					DynamicImage::ImageLuma8(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageLumaA8(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageRgb8(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageRgba8(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageLuma16(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageLumaA16(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageRgb16(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageRgba16(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageRgb32F(img) => Ok(Self::from_image(glcore, &img)),
+					DynamicImage::ImageRgba32F(img) => Ok(Self::from_image(glcore, &img)),
+					_ => Err(LoadImageError::UnsupportedImageType),
+				}
+			}
 		}
 	}
 
