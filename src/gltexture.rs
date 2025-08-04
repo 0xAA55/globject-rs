@@ -1006,6 +1006,11 @@ impl<'a> TextureBind<'a> {
 		}
 	}
 
+	/// Set the active texture unit
+	pub fn set_active_unit(&self, unit: u32) {
+		self.texture.glcore.glActiveTexture(GL_TEXTURE0 + unit)
+	}
+
 	/// Explicitly unbind the texture.
 	pub fn unbind(self) {}
 }
