@@ -10,7 +10,7 @@ use std::{
 	fmt::{self, Debug, Formatter},
 	mem::size_of_val,
 	path::Path,
-	ptr::{null, copy_nonoverlapping},
+	ptr::null,
 	rc::Rc,
 };
 use image::{ImageReader, Pixel, ImageBuffer, RgbImage, DynamicImage};

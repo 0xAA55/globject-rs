@@ -1,10 +1,8 @@
 
-use glcore::*;
-use crate::glbuffer::*;
 use crate::gltexture::*;
 use std::{
 	collections::HashMap,
-	fmt::{self, Debug, Formatter},
+	fmt::Debug,
 	rc::Rc,
 };
 use glm::*;

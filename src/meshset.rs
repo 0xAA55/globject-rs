@@ -1,6 +1,5 @@
 
 use glcore::*;
-use crate::glbuffer::*;
 use crate::glshader::*;
 use crate::glframebuffer::*;
 use crate::mesh::*;
