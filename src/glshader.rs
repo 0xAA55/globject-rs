@@ -32,10 +32,18 @@ pub enum ShaderError {
 	LinkageError(String),
 }
 
+/// Error produced from the shader
+#[derive(Encode, Decode, Debug, Clone, Copy, PartialEq)]
+pub enum ShaderType {
+	Draw,
+	Compute,
+}
+
 /// The OpenGL shader object
 pub struct Shader {
 	glcore: Rc<GLCore>,
 	program: u32,
+	shader_type: ShaderType,
 }
 
 /// The struct for monitoring using the shader
@@ -47,6 +55,7 @@ pub struct ShaderUse<'a> {
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct ShaderBinary {
 	format: u32,
+	shader_type: ShaderType,
 	binary: Vec<u8>,
 }
 
@@ -198,6 +207,7 @@ impl Shader {
 		Ok(Self {
 			glcore,
 			program,
+			shader_type: ShaderType::Draw,
 		})
 	}
 
@@ -215,6 +225,7 @@ impl Shader {
 		Ok(Self {
 			glcore,
 			program,
+			shader_type: ShaderType::Compute,
 		})
 	}
 
@@ -247,7 +258,7 @@ impl Shader {
 		let mut binary = Vec::<u8>::new();
 		binary.resize(binary_length as usize, 0);
 		self.glcore.glGetProgramBinary(self.program, binary_length, null_mut(), &mut binary_format as *mut _, binary.as_mut_ptr() as *mut _);
-		ShaderBinary::new(binary_format, binary)
+		ShaderBinary::new(binary_format, self.shader_type, binary)
 	}
 
 	/// Create a program from pre-compiled binary
@@ -257,6 +268,7 @@ impl Shader {
 		match Self::get_linkage_status(&glcore, program) {
 			Ok(_) => Ok(Self {
 				glcore,
+				shader_type: binary.shader_type,
 				program,
 			}),
 			Err(e) => {
@@ -297,9 +309,10 @@ impl Drop for Shader {
 }
 
 impl ShaderBinary {
-	pub fn new(format: u32, binary: Vec<u8>) -> Self {
+	pub fn new(format: u32, shader_type: ShaderType, binary: Vec<u8>) -> Self {
 		Self {
 			format,
+			shader_type,
 			binary,
 		}
 	}
