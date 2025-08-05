@@ -1,5 +1,5 @@
 
-use glcore::*;
+use crate::prelude::*;
 use std::{
 	cmp::min,
 	ffi::c_void,

@@ -1,5 +1,5 @@
 
-use crate::gltexture::*;
+use crate::prelude::*;
 use std::{
 	collections::HashMap,
 	fmt::Debug,

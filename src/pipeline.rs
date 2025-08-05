@@ -1,12 +1,5 @@
 
-use glcore::*;
-use crate::glcmdbuf::*;
-use crate::glbuffer::*;
-use crate::glshader::*;
-use crate::glframebuffer::*;
-use crate::mesh::*;
-use crate::material::*;
-use struct_iterable::Iterable;
+use crate::prelude::*;
 use std::{
 	any::Any,
 	collections::BTreeMap,

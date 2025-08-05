@@ -1,9 +1,5 @@
 
-use glcore::*;
-use crate::glbuffer::*;
-use crate::glcmdbuf::*;
-use crate::buffervec::*;
-use crate::material::*;
+use crate::prelude::*;
 use std::{
 	fmt::{self, Debug, Formatter},
 	rc::Rc,

@@ -1,7 +1,5 @@
 
-use glcore::*;
-use crate::glshader::*;
-use crate::gltexture::*;
+use crate::prelude::*;
 use std::{
 	cmp::max,
 	collections::BTreeMap,

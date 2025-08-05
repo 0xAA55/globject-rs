@@ -1,9 +1,7 @@
 
 #![allow(non_upper_case_globals)]
 
-use glcore::*;
-use crate::glbuffer::*;
-use crate::glcmdbuf::*;
+use crate::prelude::*;
 use std::{
 	collections::BTreeMap,
 	fmt::{self, Debug, Display, Formatter},

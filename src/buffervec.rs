@@ -1,6 +1,5 @@
 
-use glcore::*;
-use crate::glbuffer::*;
+use crate::prelude::*;
 use bitvec::vec::BitVec;
 use std::{
 	fmt::Debug,

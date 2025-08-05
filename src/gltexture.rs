@@ -1,9 +1,7 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use glcore::*;
-use crate::glbuffer::*;
-use crate::buffervec::*;
+use crate::prelude::*;
 use std::{
 	any::type_name,
 	ffi::{OsStr, c_void},

@@ -1,10 +1,5 @@
 
-use glcore::*;
-use crate::glshader::*;
-use crate::glframebuffer::*;
-use crate::mesh::*;
-use crate::material::*;
-use crate::pipeline::*;
+use crate::prelude::*;
 use std::{
 	collections::BTreeMap,
 	rc::Rc,
