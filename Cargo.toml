@@ -4,6 +4,7 @@ version = "0.0.1"
 edition = "2024"
 
 [dependencies]
+bincode = "2.0.1"
 bitvec = "1.0.1"
 glcore-rs = "0.1.5"
 half = "2.6.0"

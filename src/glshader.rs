@@ -6,10 +6,12 @@ use std::{
 	collections::BTreeMap,
 	fmt::{self, Debug, Display, Formatter},
 	mem::transmute,
+	path::Path,
 	ptr::null_mut,
 	rc::Rc,
 	string::FromUtf8Error,
 };
+use bincode::{Encode, Decode};
 
 /// Error produced from the shader
 #[derive(Clone)]
@@ -40,6 +42,24 @@ pub struct Shader {
 #[derive(Debug)]
 pub struct ShaderUse<'a> {
 	pub shader: &'a Shader,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub struct ShaderBinary {
+	format: u32,
+	binary: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub enum ShaderBinaryLoadError {
+	IOError(std::io::Error),
+	DecodeError(bincode::error::DecodeError),
+}
+
+#[derive(Debug)]
+pub enum ShaderBinarySaveError {
+	IOError(std::io::Error),
+	EncodeError(bincode::error::EncodeError),
 }
 
 /// The OpenGL attrib types
@@ -119,9 +139,14 @@ impl Shader {
 		}
 	}
 
-	/// Link a shader program, returns the compiled shader program object or the compiler/linker info log
-	fn link_program(glcore: &GLCore, program: u32)  -> Result<(), ShaderError> {
+	/// Link a shader program, returns compiler/linker info log if linkage isn't successful.
+	fn link_program(glcore: &GLCore, program: u32) -> Result<(), ShaderError> {
 		glcore.glLinkProgram(program);
+		Self::get_linkage_status(glcore, program)
+	}
+
+	/// Get the program linkage status, returns compiler/linker info log if linkage isn't successful.
+	fn get_linkage_status(glcore: &GLCore, program: u32)  -> Result<(), ShaderError> {
 		let mut linked: i32 = 0;
 		glcore.glGetProgramiv(program, GL_LINK_STATUS, &mut linked as *mut i32);
 		if linked != 0 {
@@ -214,6 +239,33 @@ impl Shader {
 		Ok(ret)
 	}
 
+	/// Get the compiled + linked program binary
+	pub fn get_program_binary(&self) -> ShaderBinary {
+		let mut binary_length = 0;
+		let mut binary_format = 0;
+		self.glcore.glGetProgramiv(self.program, GL_PROGRAM_BINARY_LENGTH, &mut binary_length as *mut _);
+		let mut binary = Vec::<u8>::new();
+		binary.resize(binary_length as usize, 0);
+		self.glcore.glGetProgramBinary(self.program, binary_length, null_mut(), &mut binary_format as *mut _, binary.as_mut_ptr() as *mut _);
+		ShaderBinary::new(binary_format, binary)
+	}
+
+	/// Create a program from pre-compiled binary
+	pub fn from_program_binary(glcore: Rc<GLCore>, binary: &ShaderBinary) -> Result<Self, ShaderError> {
+		let program = glcore.glCreateProgram();
+		glcore.glProgramBinary(program, binary.format, binary.binary.as_ptr() as *const _, binary.binary.len() as i32);
+		match Self::get_linkage_status(&glcore, program) {
+			Ok(_) => Ok(Self {
+				glcore,
+				program,
+			}),
+			Err(e) => {
+				glcore.glDeleteProgram(program);
+				Err(e)
+			}
+		}
+	}
+
 	/// Set to use the shader
 	pub fn use_program<'a>(&'a self) -> ShaderUse<'a> {
 		ShaderUse::new(self)
@@ -241,6 +293,32 @@ impl Drop for ShaderUse<'_> {
 impl Drop for Shader {
 	fn drop(&mut self) {
 		self.glcore.glDeleteProgram(self.program)
+	}
+}
+
+impl ShaderBinary {
+	pub fn new(format: u32, binary: Vec<u8>) -> Self {
+		Self {
+			format,
+			binary,
+		}
+	}
+
+	pub fn load_from_file(path: &Path) -> Result<Self, ShaderBinaryLoadError> {
+		let config = bincode::config::standard()
+			.with_little_endian()
+			.with_fixed_int_encoding();
+		let mut file = std::fs::File::open(path)?;
+		Ok(bincode::decode_from_std_read(&mut file, config)?)
+	}
+
+	pub fn save_to_file(&self, path: &Path) -> Result<(), ShaderBinarySaveError> {
+		let config = bincode::config::standard()
+			.with_little_endian()
+			.with_fixed_int_encoding();
+		let mut file = std::fs::File::open(path)?;
+		bincode::encode_into_std_write(self, &mut file, config)?;
+		Ok(())
 	}
 }
 
@@ -417,5 +495,29 @@ impl Debug for AttribType {
 impl Display for AttribType {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		<Self as Debug>::fmt(self, f)
+	}
+}
+
+impl From<std::io::Error> for ShaderBinaryLoadError {
+	fn from(err: std::io::Error) -> Self {
+		Self::IOError(err)
+	}
+}
+
+impl From<bincode::error::DecodeError> for ShaderBinaryLoadError {
+	fn from(err: bincode::error::DecodeError) -> Self {
+		Self::DecodeError(err)
+	}
+}
+
+impl From<std::io::Error> for ShaderBinarySaveError {
+	fn from(err: std::io::Error) -> Self {
+		Self::IOError(err)
+	}
+}
+
+impl From<bincode::error::EncodeError> for ShaderBinarySaveError {
+	fn from(err: bincode::error::EncodeError) -> Self {
+		Self::EncodeError(err)
 	}
 }
