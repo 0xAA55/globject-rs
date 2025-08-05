@@ -59,7 +59,7 @@ mod tests {
 
 	#[derive(Debug)]
 	struct Renderer {
-		pipeline: Rc<Pipeline<StaticMesh, MaterialLegacy>>,
+		pipeline: Rc<Pipeline<MyVertex, UnusedType, StaticMesh, MaterialLegacy>>,
 		shader: Rc<Shader>,
 		mesh: Rc<MeshWithMaterial<StaticMesh, MaterialLegacy>>,
 	}
@@ -113,7 +113,7 @@ void main()
 }
 				")
 			).unwrap());
-			let pipeline = Rc::new(Pipeline::new::<MyVertex, UnusedType>(glcore.clone(), mesh.clone(), shader.clone()));
+			let pipeline = Rc::new(Pipeline::new(glcore.clone(), mesh.clone(), shader.clone()));
 			Self {
 				mesh,
 				shader,
