@@ -22,7 +22,7 @@ pub struct MaterialLegacy {
 	pub specular: TextureOrColor,
 	pub normal: TextureOrColor,
 	pub emissive: TextureOrColor,
-	pub others: HashMap<&'static str, TextureOrColor>,
+	pub others: HashMap<String, TextureOrColor>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -34,7 +34,7 @@ pub struct MaterialPbr {
 	pub roughness: TextureOrColor,
 	pub metalness: TextureOrColor,
 	pub emissive: TextureOrColor,
-	pub others: HashMap<&'static str, TextureOrColor>,
+	pub others: HashMap<String, TextureOrColor>,
 }
 
 impl Default for TextureOrColor {
@@ -55,6 +55,7 @@ pub trait Material: Debug {
 	fn get_normal(&self) -> Option<&TextureOrColor>;
 	fn get_emissive(&self) -> Option<&TextureOrColor>;
 	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor>;
+	fn set_by_name(&mut self, name: &str, texture: TextureOrColor);
 }
 
 impl Material for MaterialLegacy {
@@ -71,7 +72,7 @@ impl Material for MaterialLegacy {
 	fn get_metalness(&self) ->		Option<&TextureOrColor> {None}
 
 	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
-		match self.others.get(name) {
+		match self.others.get(&name.to_owned()) {
 			Some(data) => Some(data),
 			None => {
 				match name {
@@ -82,6 +83,19 @@ impl Material for MaterialLegacy {
 					"emissive" =>	self.get_emissive(),
 					_ => None,
 				}
+			}
+		}
+	}
+
+	fn set_by_name(&mut self, name: &str, texture: TextureOrColor) {
+		match name {
+			"ambient" =>	self.ambient = texture,
+			"diffuse" =>	self.diffuse = texture,
+			"specular" =>	self.specular = texture,
+			"normal" =>		self.normal = texture,
+			"emissive" =>	self.emissive = texture,
+			others =>{
+				self.others.insert(others.to_owned(), texture);
 			}
 		}
 	}
@@ -101,7 +115,7 @@ impl Material for MaterialPbr {
 	fn get_specular(&self) ->		Option<&TextureOrColor> {None}
 
 	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
-		match self.others.get(name) {
+		match self.others.get(&name.to_owned()) {
 			Some(data) => Some(data),
 			None => {
 				match name {
@@ -114,6 +128,21 @@ impl Material for MaterialPbr {
 					"emissive" =>		self.get_emissive(),
 					_ => None,
 				}
+			}
+		}
+	}
+
+	fn set_by_name(&mut self, name: &str, texture: TextureOrColor) {
+		match name {
+			"albedo" =>			self.albedo = texture,
+			"ao" =>				self.ao = texture,
+			"displacement" =>	self.displacement = texture,
+			"roughness" =>		self.roughness = texture,
+			"metalness" =>		self.metalness = texture,
+			"normal" =>			self.normal = texture,
+			"emissive" =>		self.emissive = texture,
+			others =>{
+				self.others.insert(others.to_owned(), texture);
 			}
 		}
 	}
