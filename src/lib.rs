@@ -2,18 +2,35 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-pub mod glbuffer;
-pub mod glshader;
-pub mod glcmdbuf;
-pub mod gltexture;
-pub mod glframebuffer;
-pub mod buffervec;
-pub mod mesh;
-pub mod material;
-pub mod pipeline;
+mod glbuffer;
+mod glshader;
+mod glcmdbuf;
+mod gltexture;
+mod glframebuffer;
+mod buffervec;
+mod mesh;
+mod material;
+mod pipeline;
 
 extern crate nalgebra_glm as glm;
-extern crate struct_iterable;
+
+pub mod prelude {
+	pub use crate::glbuffer::*;
+	pub use crate::glshader::*;
+	pub use crate::glcmdbuf::*;
+	pub use crate::gltexture::*;
+	pub use crate::glframebuffer::*;
+	pub use crate::buffervec::*;
+	pub use crate::mesh::*;
+	pub use crate::material::*;
+	pub use crate::pipeline::*;
+	pub use crate::derive_vertex_type;
+	pub use glm::*;
+	pub use struct_iterable::Iterable;
+	pub use glcore::*;
+}
+
+pub use prelude::*;
 
 #[cfg(test)]
 mod tests {
@@ -24,22 +41,9 @@ mod tests {
 		rc::Rc,
 	};
 
-	use super::gltexture::*;
-	use super::glframebuffer::*;
-	use super::glshader::*;
-	use super::glbuffer::*;
-	use super::buffervec::*;
-	use super::mesh::*;
-	use super::material::*;
-	use super::pipeline::*;
-
-	use crate::derive_vertex_type;
+	use super::prelude::*;
 
 	use glfw::*;
-	use glcore::*;
-	use glm::*;
-
-	use struct_iterable::Iterable;
 
 	derive_vertex_type! {
 		pub struct MyVertex {
