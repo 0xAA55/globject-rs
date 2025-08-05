@@ -10,8 +10,6 @@ use std::{
 	ptr::null,
 	rc::Rc,
 };
-use half::f16;
-use glm::*;
 
 pub trait VertexType: Copy + Clone + Sized + Default + Debug + Iterable {}
 impl<T> VertexType for T where T: Copy + Clone + Sized + Default + Debug + Iterable {}
@@ -338,7 +336,6 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 		});
 
 		let mesh = &self.pipeline.mesh;
-		let vertex_buffer = mesh.get_vertex_buffer();
 		let element_buffer = mesh.get_element_buffer();
 		let e_bind = element_buffer.as_ref().map(|b| {
 			assert_eq!(b.buffer.get_target(), BufferTarget::ElementArrayBuffer);
