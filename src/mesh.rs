@@ -511,7 +511,7 @@ impl Debug for PrimitiveMode {
 impl Debug for ElementType {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
-			Self::U8 => write!(f, "U8"),
+			Self::U8 =>  write!(f, "U8"),
 			Self::U16 => write!(f, "U16"),
 			Self::U32 => write!(f, "U32"),
 		}
