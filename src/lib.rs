@@ -29,6 +29,7 @@ pub mod prelude {
 	pub use glm::*;
 	pub use struct_iterable::Iterable;
 	pub use glcore::*;
+	pub use half::f16;
 }
 
 pub use prelude::*;
