@@ -986,6 +986,11 @@ impl Texture {
 	pub fn get_dim(&self) -> TextureDimension {
 		self.dim
 	}
+
+	/// Set the active texture unit
+	pub fn set_active_unit(&self, unit: u32) {
+		self.glcore.glActiveTexture(GL_TEXTURE0 + unit)
+	}
 }
 
 impl Drop for Texture {
