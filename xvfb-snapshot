@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+xwd -root -silent | convert xwd:- png:/tmp/screenshot.png
