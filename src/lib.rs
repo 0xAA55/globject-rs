@@ -11,6 +11,7 @@ mod buffervec;
 mod mesh;
 mod material;
 mod pipeline;
+mod meshset;
 
 extern crate nalgebra_glm as glm;
 
@@ -24,6 +25,7 @@ pub mod prelude {
 	pub use crate::mesh::*;
 	pub use crate::material::*;
 	pub use crate::pipeline::*;
+	pub use crate::meshset::*;
 	pub use crate::derive_vertex_type;
 	pub use glm::*;
 	pub use struct_iterable::Iterable;
