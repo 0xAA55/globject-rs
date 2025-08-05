@@ -2,10 +2,12 @@
 #![allow(non_upper_case_globals)]
 
 use glcore::*;
+use crate::glbuffer::*;
+use crate::glcmdbuf::*;
 use std::{
 	collections::BTreeMap,
 	fmt::{self, Debug, Display, Formatter},
-	mem::transmute,
+	mem::{transmute, size_of},
 	path::Path,
 	ptr::null_mut,
 	rc::Rc,
@@ -290,6 +292,24 @@ impl<'a> ShaderUse<'a> {
 		Self {
 			shader,
 		}
+	}
+
+	/// Dispatch the compute shader
+	pub fn dispatch_compute(&self, num_groups_x: u32, num_groups_y: u32, num_groups_z: u32) {
+		if self.shader.shader_type != ShaderType::Compute {
+			panic!("Only compute shaders could use the `dispatch_compute()` method.");
+		}
+		self.shader.glcore.glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
+	}
+
+	/// Dispatch the compute shader
+	pub fn dispatch_compute_indirect(&self, buffer: &Buffer, index: usize) {
+		if self.shader.shader_type != ShaderType::Compute {
+			panic!("Only compute shaders could use the `dispatch_compute_indirect()` method.");
+		}
+		let bind = buffer.bind_to(BufferTarget::DispatchIndirectBuffer);
+		self.shader.glcore.glDispatchComputeIndirect(index * size_of::<DispatchIndirectCommand>());
+		bind.unbind();
 	}
 
 	/// Unuse the program.
