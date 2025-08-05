@@ -73,7 +73,7 @@ pub enum ShaderBinarySaveError {
 
 /// The OpenGL attrib types
 #[derive(Clone, Copy)]
-pub enum AttribType {
+pub enum ShaderInputType {
 	Float = GL_FLOAT as isize,
 	Vec2 = GL_FLOAT_VEC2 as isize,
 	Vec3 = GL_FLOAT_VEC3 as isize,
@@ -111,8 +111,8 @@ pub enum AttribType {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct AttribVarType {
-	pub type_: AttribType,
+pub struct ShaderInputVarType {
+	pub type_: ShaderInputType,
 	pub size: i32,
 }
 
@@ -230,22 +230,22 @@ impl Shader {
 	}
 
 	/// Get all of the active attributes of the shader
-	pub fn get_active_attribs(&self) -> Result<BTreeMap<String, AttribVarType>, FromUtf8Error> {
-		let mut num_attrib: i32 = 0;
+	pub fn get_active_attribs(&self) -> Result<BTreeMap<String, ShaderInputVarType>, FromUtf8Error> {
+		let mut num_attribs: i32 = 0;
 		let mut max_length: i32 = 0;
-		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTES, &mut num_attrib as *mut _);
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTES, &mut num_attribs as *mut _);
 		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &mut max_length as *mut _);
 
-		let mut ret = BTreeMap::<String, AttribVarType>::new();
-		for i in 0..num_attrib {
+		let mut ret = BTreeMap::<String, ShaderInputVarType>::new();
+		for i in 0..num_attribs {
 			let mut name = vec![0i8; max_length as usize];
 			let mut size: i32 = 0;
 			let mut type_: u32 = 0;
 			self.glcore.glGetActiveAttrib(self.program, i as u32, max_length, null_mut::<i32>(), &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
 			let name = String::from_utf8(unsafe{transmute::<Vec<i8>, Vec<u8>>(name)})?;
 			let name = name.trim_end_matches('\0').to_string();
-			let type_ = AttribType::from(type_);
-			ret.insert(name, AttribVarType{type_, size});
+			let type_ = ShaderInputType::from(type_);
+			ret.insert(name, ShaderInputVarType{type_, size});
 		}
 		Ok(ret)
 	}
@@ -353,7 +353,7 @@ impl ShaderBinary {
 	}
 }
 
-impl AttribType {
+impl ShaderInputType {
 	pub fn is_float(&self) -> bool {
 		matches!(self, Self::Float | Self::Vec2 | Self::Vec3 | Self::Vec4 | Self::Mat2 | Self::Mat3 | Self::Mat4 | Self::Mat2x3 | Self::Mat2x4 | Self::Mat3x2 | Self::Mat3x4 | Self::Mat4x2 | Self::Mat4x3)
 	}
@@ -384,7 +384,7 @@ impl AttribType {
 		}
 	}
 
-	pub fn get_base_type(&self) -> AttribType {
+	pub fn get_base_type(&self) -> ShaderInputType {
 		match self {
 			Self::Float | Self::Vec2 | Self::Vec3 | Self::Vec4 | Self::Mat2 | Self::Mat3 | Self::Mat4 | Self::Mat2x3 | Self::Mat2x4 | Self::Mat3x2 | Self::Mat3x4 | Self::Mat4x2 | Self::Mat4x3 => Self::Float,
 			Self::Double | Self::DVec2 | Self::DVec3 | Self::DVec4 | Self::DMat2 | Self::DMat3 | Self::DMat4 | Self::DMat2x3 | Self::DMat2x4 | Self::DMat3x2 | Self::DMat3x4 | Self::DMat4x2 | Self::DMat4x3 => Self::Double,
@@ -394,7 +394,7 @@ impl AttribType {
 	}
 }
 
-impl AttribVarType {
+impl ShaderInputVarType {
 	pub fn is_float(&self) -> bool {
 		self.type_.is_float()
 	}
@@ -411,11 +411,11 @@ impl AttribVarType {
 		self.type_.get_size_and_rows()
 	}
 
-	pub fn get_type(&self) -> AttribType {
+	pub fn get_type(&self) -> ShaderInputType {
 		self.type_
 	}
 
-	pub fn get_base_type(&self) -> AttribType {
+	pub fn get_base_type(&self) -> ShaderInputType {
 		self.type_.get_base_type()
 	}
 }
@@ -440,7 +440,7 @@ impl Debug for ShaderError {
 	}
 }
 
-impl From<u32> for AttribType {
+impl From<u32> for ShaderInputType {
 	fn from(val: u32) -> Self {
 		match val {
 			GL_FLOAT => Self::Float,
@@ -477,12 +477,12 @@ impl From<u32> for AttribType {
 			GL_DOUBLE_MAT3x4 => Self::DMat3x4,
 			GL_DOUBLE_MAT4x2 => Self::DMat4x2,
 			GL_DOUBLE_MAT4x3 => Self::DMat4x3,
-			_ => panic!("Invalid value {val} of `AttribType`"),
+			_ => panic!("Invalid value {val} of `ShaderInputType`"),
 		}
 	}
 }
 
-impl Debug for AttribType {
+impl Debug for ShaderInputType {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
 			Self::Float => write!(f, "float"),
@@ -523,7 +523,7 @@ impl Debug for AttribType {
 	}
 }
 
-impl Display for AttribType {
+impl Display for ShaderInputType {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		<Self as Debug>::fmt(self, f)
 	}

@@ -110,7 +110,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 		program.unuse();
 	}
 
-	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, AttribVarType>, v_a_d: u32) {
+	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, ShaderInputVarType>, v_a_d: u32) {
 		let instance = T::default();
 		let stride = size_of::<T>();
 		let mut cur_offset: usize = 0;
