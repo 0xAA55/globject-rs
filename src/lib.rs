@@ -41,9 +41,7 @@ mod tests {
 		process::ExitCode,
 		rc::Rc,
 	};
-
 	use super::prelude::*;
-
 	use glfw::*;
 
 	derive_vertex_type! {
