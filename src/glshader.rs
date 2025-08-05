@@ -344,6 +344,45 @@ impl<'a> ShaderUse<'a> {
 		bind.unbind();
 	}
 
+	/// Set shader uniform inputs by a material
+	pub fn setup_material_uniforms<M: Material>(&self, material: &M, prefix: Option<&str>, camel_case: bool) {
+		let glcore = &self.shader.glcore;
+		let shader_uniforms = self.shader.get_active_uniforms().unwrap();
+		let texture_names = material.get_names();
+		let mut active_texture = 0u32;
+		for name in texture_names.iter() {
+			let mut name_mod = String::new();
+			if let Some(prefix) = prefix {
+				name_mod.push_str(prefix);
+			}
+			if camel_case {
+				name_mod.push_str(&to_camel_case(name, prefix.is_some()));
+			} else {
+				name_mod.push_str(&name);
+			}
+			if let Some(_) = shader_uniforms.get(&name_mod) {
+				if let Some(texture) = material.get_by_name(&name) {
+					let location = self.shader.get_uniform_location(&name_mod);
+					if location == -1 {
+						continue;
+					}
+					match texture {
+						TextureOrColor::Texture(texture) => {
+							texture.set_active_unit(active_texture);
+							let bind = texture.bind();
+							glcore.glUniform1i(location, active_texture as i32);
+							bind.unbind();
+							active_texture += 1;
+						}
+						TextureOrColor::Color(color) => {
+							glcore.glUniform4f(location, color.x, color.y, color.z, color.w);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/// Unuse the program.
 	pub fn unuse(self) {}
 }

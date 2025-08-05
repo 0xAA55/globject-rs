@@ -335,6 +335,8 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 			Some(bind)
 		});
 
+		program.setup_material_uniforms(self.pipeline.mesh.get_material(), Some("i"), true);
+
 		let mesh = &self.pipeline.mesh;
 		let element_buffer = mesh.get_element_buffer();
 		let e_bind = element_buffer.as_ref().map(|b| {
