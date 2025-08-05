@@ -278,6 +278,12 @@ impl Shader {
 		Ok(ret)
 	}
 
+	/// Get the location of the shader attrib
+	pub fn get_uniform_location(&self, uniform_name: &str) -> i32 {
+		let uniform_name = CString::new(uniform_name).unwrap();
+		self.glcore.glGetUniformLocation(self.program, uniform_name.as_ptr())
+	}
+
 	/// Get the compiled + linked program binary
 	pub fn get_program_binary(&self) -> ShaderBinary {
 		let mut binary_length = 0;
