@@ -1,7 +1,7 @@
 
 use crate::prelude::*;
 use std::{
-	collections::HashMap,
+	collections::{HashMap, BTreeSet},
 	fmt::Debug,
 	rc::Rc,
 };
@@ -52,6 +52,7 @@ pub trait Material: Debug {
 	fn get_metalness(&self) -> Option<&TextureOrColor>;
 	fn get_normal(&self) -> Option<&TextureOrColor>;
 	fn get_emissive(&self) -> Option<&TextureOrColor>;
+	fn get_names(&self) -> BTreeSet<String>;
 	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor>;
 	fn set_by_name(&mut self, name: &str, texture: TextureOrColor);
 }
@@ -68,6 +69,19 @@ impl Material for MaterialLegacy {
 	fn get_displacement(&self) ->	Option<&TextureOrColor> {None}
 	fn get_roughness(&self) ->		Option<&TextureOrColor> {None}
 	fn get_metalness(&self) ->		Option<&TextureOrColor> {None}
+
+	fn get_names(&self) -> BTreeSet<String> {
+		let mut ret = BTreeSet::new();
+		ret.insert("ambient".to_owned());
+		ret.insert("diffuse".to_owned());
+		ret.insert("specular".to_owned());
+		ret.insert("normal".to_owned());
+		ret.insert("emissive".to_owned());
+		for (name, _) in self.others.iter() {
+			ret.insert(name.clone());
+		}
+		ret
+	}
 
 	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
 		match self.others.get(&name.to_owned()) {
@@ -111,6 +125,21 @@ impl Material for MaterialPbr {
 	fn get_ambient(&self) ->		Option<&TextureOrColor> {None}
 	fn get_diffuse(&self) ->		Option<&TextureOrColor> {None}
 	fn get_specular(&self) ->		Option<&TextureOrColor> {None}
+
+	fn get_names(&self) -> BTreeSet<String> {
+		let mut ret = BTreeSet::new();
+		ret.insert("albedo".to_owned());
+		ret.insert("ao".to_owned());
+		ret.insert("displacement".to_owned());
+		ret.insert("roughness".to_owned());
+		ret.insert("metalness".to_owned());
+		ret.insert("normal".to_owned());
+		ret.insert("emissive".to_owned());
+		for (name, _) in self.others.iter() {
+			ret.insert(name.clone());
+		}
+		ret
+	}
 
 	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
 		match self.others.get(&name.to_owned()) {
