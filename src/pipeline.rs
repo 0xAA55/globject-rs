@@ -12,6 +12,7 @@ use std::{
 	collections::BTreeMap,
 	ffi::{CString, c_void},
 	fmt::{self, Debug, Formatter},
+	marker::PhantomData,
 	mem::size_of,
 	ptr::null,
 	rc::Rc,
@@ -31,13 +32,15 @@ macro_rules! derive_vertex_type {
 	};
 }
 
-pub struct Pipeline<M: Mesh, Mat: Material> {
+pub struct Pipeline<V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
 	pub glcore: Rc<GLCore>,
 	name: u32,
 	pub mesh: Rc<MeshWithMaterial<M, Mat>>,
 	pub shader: Rc<Shader>,
 	vertex_stride: usize,
 	instance_stride: usize,
+	_phantom_vertex_type: PhantomData<V>,
+	_phantom_instance_type: PhantomData<I>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -48,8 +51,8 @@ struct DataGlType {
 }
 
 #[derive(Debug)]
-pub struct PipelineBind<'a, M: Mesh, Mat: Material> {
-	pub pipeline: &'a Pipeline<M, Mat>,
+pub struct PipelineBind<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
+	pub pipeline: &'a Pipeline<V, I, M, Mat>,
 }
 
 impl DataGlType {
@@ -72,13 +75,13 @@ impl DataGlType {
 	}
 }
 
-impl<M: Mesh, Mat: Material> Pipeline<M, Mat> {
+impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat> {
 	/// Get the internal name
 	pub fn get_name(&self) -> u32 {
 		self.name
 	}
 
-	pub fn new<V: VertexType, I: VertexType>(glcore: Rc<GLCore>, mesh: Rc<MeshWithMaterial<M, Mat>>, shader: Rc<Shader>) -> Self {
+	pub fn new(glcore: Rc<GLCore>, mesh: Rc<MeshWithMaterial<M, Mat>>, shader: Rc<Shader>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenVertexArrays(1, &mut name as *mut u32);
 		let mut ret = Self {
@@ -88,12 +91,14 @@ impl<M: Mesh, Mat: Material> Pipeline<M, Mat> {
 			shader,
 			vertex_stride: size_of::<V>(),
 			instance_stride: size_of::<I>(),
+			_phantom_vertex_type: PhantomData,
+			_phantom_instance_type: PhantomData,
 		};
-		ret.establish_pipeline::<V, I>();
+		ret.establish_pipeline();
 		ret
 	}
 
-	fn establish_pipeline<V: VertexType, I: VertexType>(&mut self) {
+	fn establish_pipeline(&mut self) {
 		let program = self.shader.use_program();
 		let active_attribs = self.shader.get_active_attribs().unwrap();
 		let bind = self.bind();
@@ -158,7 +163,7 @@ impl<M: Mesh, Mat: Material> Pipeline<M, Mat> {
 		}
 	}
 
-	pub fn bind<'a>(&'a self) -> PipelineBind<'a, M, Mat> {
+	pub fn bind<'a>(&'a self) -> PipelineBind<'a, V, I, M, Mat> {
 		PipelineBind::new(self)
 	}
 
@@ -317,8 +322,8 @@ impl<M: Mesh, Mat: Material> Pipeline<M, Mat> {
 	}
 }
 
-impl<'a, M: Mesh, Mat: Material> PipelineBind<'a, M, Mat> {
-	fn new(pipeline: &'a Pipeline<M, Mat>) -> Self {
+impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, V, I, M, Mat> {
+	fn new(pipeline: &'a Pipeline<V, I, M, Mat>) -> Self {
 		pipeline.glcore.glBindVertexArray(pipeline.name);
 		Self {
 			pipeline,
@@ -384,19 +389,19 @@ impl<'a, M: Mesh, Mat: Material> PipelineBind<'a, M, Mat> {
 	pub fn unbind(self) {}
 }
 
-impl<'a, M: Mesh, Mat: Material> Drop for PipelineBind<'a, M, Mat> {
+impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> Drop for PipelineBind<'a, V, I, M, Mat> {
 	fn drop(&mut self) {
 		self.pipeline.glcore.glBindVertexArray(0);
 	}
 }
 
-impl<M: Mesh, Mat: Material> Drop for Pipeline<M, Mat> {
+impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Drop for Pipeline<V, I, M, Mat> {
 	fn drop(&mut self) {
 		self.glcore.glDeleteVertexArrays(1, &self.name as *const u32);
 	}
 }
 
-impl<M: Mesh, Mat: Material> Debug for Pipeline<M, Mat> {
+impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Debug for Pipeline<V, I, M, Mat> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Pipeline")
 		.field("name", &self.name)
