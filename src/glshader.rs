@@ -257,6 +257,27 @@ impl Shader {
 		self.glcore.glGetAttribLocation(self.program, attrib_name.as_ptr())
 	}
 
+	/// Get all of the active uniforms of the shader
+	pub fn get_active_uniforms(&self) -> Result<BTreeMap<String, ShaderInputVarType>, FromUtf8Error> {
+		let mut num_uniforms: i32 = 0;
+		let mut max_length: i32 = 0;
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_UNIFORMS, &mut num_uniforms as *mut _);
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &mut max_length as *mut _);
+
+		let mut ret = BTreeMap::<String, ShaderInputVarType>::new();
+		for i in 0..num_uniforms {
+			let mut name = vec![0i8; max_length as usize];
+			let mut size: i32 = 0;
+			let mut type_: u32 = 0;
+			self.glcore.glGetActiveUniform(self.program, i as u32, max_length, null_mut::<i32>(), &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
+			let name = String::from_utf8(unsafe{transmute::<Vec<i8>, Vec<u8>>(name)})?;
+			let name = name.trim_end_matches('\0').to_string();
+			let type_ = ShaderInputType::from(type_);
+			ret.insert(name, ShaderInputVarType{type_, size});
+		}
+		Ok(ret)
+	}
+
 	/// Get the compiled + linked program binary
 	pub fn get_program_binary(&self) -> ShaderBinary {
 		let mut binary_length = 0;
