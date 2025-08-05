@@ -91,7 +91,7 @@ mod tests {
 			let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void);
 			let element_buffer = Buffer::new(glcore.clone(), BufferTarget::ElementArrayBuffer, size_of_val(&elements), BufferUsage::StaticDraw, elements.as_ptr() as *const c_void);
 			let element_buffer = ElementBuffer{buffer: element_buffer, element_type: ElementType::U8};
-			let mesh = StaticMesh::new(PrimitiveMode::Triangles, vertex_buffer, Some(element_buffer), None, None);
+			let mesh = StaticMesh::new(PrimitiveMode::Triangles, vertex_buffer, vertices.len(), Some(element_buffer), None, 0, None);
 			let mesh = Rc::new(MeshWithMaterial::new(mesh, Rc::new(MaterialLegacy::default())));
 			let shader = Rc::new(Shader::new(glcore.clone(),
 				Some("
