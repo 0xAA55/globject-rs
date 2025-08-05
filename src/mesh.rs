@@ -56,9 +56,8 @@ pub struct ElementBufferRef<'a> {
 	pub element_type: ElementType,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct StaticMesh {
-	pub glcore: Rc<GLCore>,
 	pub primitive: PrimitiveMode,
 	pub vertex_buffer: Buffer,
 	pub element_buffer: Option<ElementBuffer>,
@@ -66,9 +65,8 @@ pub struct StaticMesh {
 	pub command_buffer: Option<Buffer>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct EditableMesh {
-	pub glcore: Rc<GLCore>,
 	pub primitive: PrimitiveMode,
 	pub vertex_buffer: BufferVec,
 	pub element_buffer: Option<ElementBufferVec>,
@@ -76,9 +74,8 @@ pub struct EditableMesh {
 	pub command_buffer: Option<BufferVec>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DynamicMesh<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> {
-	pub glcore: Rc<GLCore>,
 	pub primitive: PrimitiveMode,
 	pub vertex_buffer: BufferVecDynamic<T>,
 	pub element_buffer: Option<ElementBufferVecDynamic<E>>,
@@ -87,9 +84,8 @@ pub struct DynamicMesh<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: 
 }
 
 impl StaticMesh {
-	pub fn new(glcore: Rc<GLCore>, primitive: PrimitiveMode, vertex_buffer: Buffer, element_buffer: Option<ElementBuffer>, instance_buffer: Option<Buffer>, command_buffer: Option<Buffer>) -> Self {
+	pub fn new(primitive: PrimitiveMode, vertex_buffer: Buffer, element_buffer: Option<ElementBuffer>, instance_buffer: Option<Buffer>, command_buffer: Option<Buffer>) -> Self {
 		Self {
-			glcore,
 			primitive,
 			element_buffer,
 			vertex_buffer,
@@ -100,9 +96,8 @@ impl StaticMesh {
 }
 
 impl EditableMesh {
-	pub fn new(glcore: Rc<GLCore>, primitive: PrimitiveMode, vertex_buffer: BufferVec, element_buffer: Option<ElementBufferVec>, instance_buffer: Option<BufferVec>, command_buffer: Option<BufferVec>) -> Self {
+	pub fn new(primitive: PrimitiveMode, vertex_buffer: BufferVec, element_buffer: Option<ElementBufferVec>, instance_buffer: Option<BufferVec>, command_buffer: Option<BufferVec>) -> Self {
 		Self {
-			glcore,
 			primitive,
 			vertex_buffer,
 			element_buffer,
@@ -113,9 +108,8 @@ impl EditableMesh {
 }
 
 impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> DynamicMesh<T, E, I, C> {
-	pub fn new(glcore: Rc<GLCore>, primitive: PrimitiveMode, vertex_buffer: BufferVecDynamic<T>, element_buffer: Option<ElementBufferVecDynamic<E>>, instance_buffer: Option<BufferVecDynamic<I>>, command_buffer: Option<BufferVecDynamic<C>>) -> Self {
+	pub fn new(primitive: PrimitiveMode, vertex_buffer: BufferVecDynamic<T>, element_buffer: Option<ElementBufferVecDynamic<E>>, instance_buffer: Option<BufferVecDynamic<I>>, command_buffer: Option<BufferVecDynamic<C>>) -> Self {
 		Self {
-			glcore,
 			primitive,
 			vertex_buffer,
 			element_buffer,
@@ -267,7 +261,6 @@ impl<T: BufferVecItem> From<ElementBufferVecDynamic<T>> for ElementBufferVec {
 impl From<StaticMesh> for EditableMesh {
 	fn from(val: StaticMesh) -> Self {
 		EditableMesh {
-			glcore: val.glcore,
 			primitive: val.primitive,
 			vertex_buffer: val.vertex_buffer.into(),
 			element_buffer: val.element_buffer.map(|b|b.into()),
@@ -280,7 +273,6 @@ impl From<StaticMesh> for EditableMesh {
 impl From<EditableMesh> for StaticMesh {
 	fn from(val: EditableMesh) -> Self {
 		StaticMesh {
-			glcore: val.glcore,
 			primitive: val.primitive,
 			vertex_buffer: val.vertex_buffer.into(),
 			element_buffer: val.element_buffer.map(|b|b.into()),
@@ -293,7 +285,6 @@ impl From<EditableMesh> for StaticMesh {
 impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<StaticMesh> for DynamicMesh<T, E, I, C> {
 	fn from(val: StaticMesh) -> Self {
 		DynamicMesh {
-			glcore: val.glcore,
 			primitive: val.primitive,
 			vertex_buffer: val.vertex_buffer.into(),
 			element_buffer: val.element_buffer.map(|b|b.into()),
@@ -306,7 +297,6 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<
 impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<DynamicMesh<T, E, I, C>> for StaticMesh {
 	fn from(val: DynamicMesh<T, E, I, C>) -> Self {
 		StaticMesh {
-			glcore: val.glcore,
 			primitive: val.primitive,
 			vertex_buffer: val.vertex_buffer.into(),
 			element_buffer: val.element_buffer.map(|b|b.into()),
@@ -319,7 +309,6 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<
 impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<DynamicMesh<T, E, I, C>> for EditableMesh {
 	fn from(val: DynamicMesh<T, E, I, C>) -> Self {
 		EditableMesh {
-			glcore: val.glcore,
 			primitive: val.primitive,
 			vertex_buffer: val.vertex_buffer.into(),
 			element_buffer: val.element_buffer.map(|b|b.into()),
@@ -332,7 +321,6 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<
 impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<EditableMesh> for DynamicMesh<T, E, I, C> {
 	fn from(val: EditableMesh) -> Self {
 		DynamicMesh {
-			glcore: val.glcore,
 			primitive: val.primitive,
 			vertex_buffer: val.vertex_buffer.into(),
 			element_buffer: val.element_buffer.map(|b|b.into()),
@@ -342,44 +330,7 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<
 	}
 }
 
-impl Debug for StaticMesh {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("StaticMesh")
-		.field("primitive", &self.primitive)
-		.field("vertex_buffer", &self.vertex_buffer)
-		.field("element_buffer", &self.element_buffer)
-		.field("instance_buffer", &self.instance_buffer)
-		.field("command_buffer", &self.command_buffer)
-		.finish()
-	}
-}
-
-impl Debug for EditableMesh {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("EditableMesh")
-		.field("primitive", &self.primitive)
-		.field("vertex_buffer", &self.vertex_buffer)
-		.field("element_buffer", &self.element_buffer)
-		.field("instance_buffer", &self.instance_buffer)
-		.field("command_buffer", &self.command_buffer)
-		.finish()
-	}
-}
-
-impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Debug for DynamicMesh<T, E, I, C> {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("DynamicMesh")
-		.field("primitive", &self.primitive)
-		.field("vertex_buffer", &self.vertex_buffer)
-		.field("element_buffer", &self.element_buffer)
-		.field("instance_buffer", &self.instance_buffer)
-		.field("command_buffer", &self.command_buffer)
-		.finish()
-	}
-}
-
 pub trait Mesh: Debug {
-	fn get_glcore(&self) -> &GLCore;
 	fn get_primitive(&self) -> PrimitiveMode;
 	fn get_vertex_buffer(&self) -> &Buffer;
 	fn get_element_buffer(&self) -> Option<ElementBufferRef>;
@@ -388,10 +339,6 @@ pub trait Mesh: Debug {
 }
 
 impl Mesh for StaticMesh {
-	fn get_glcore(&self) -> &GLCore {
-		self.glcore.as_ref()
-	}
-
 	fn get_primitive(&self) -> PrimitiveMode {
 		self.primitive
 	}
@@ -422,10 +369,6 @@ impl Mesh for StaticMesh {
 }
 
 impl Mesh for EditableMesh {
-	fn get_glcore(&self) -> &GLCore {
-		self.glcore.as_ref()
-	}
-
 	fn get_primitive(&self) -> PrimitiveMode {
 		self.primitive
 	}
@@ -456,10 +399,6 @@ impl Mesh for EditableMesh {
 }
 
 impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh for DynamicMesh<T, E, I, C> {
-	fn get_glcore(&self) -> &GLCore {
-		self.glcore.as_ref()
-	}
-
 	fn get_primitive(&self) -> PrimitiveMode {
 		self.primitive
 	}
@@ -518,17 +457,15 @@ impl Debug for ElementType {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MeshWithMaterial<M: Mesh, Mat: Material> {
-	glcore: Rc<GLCore>,
 	material: Rc<Mat>,
 	mesh: M,
 }
 
 impl<M: Mesh, Mat: Material> MeshWithMaterial<M, Mat> {
-	pub fn new(glcore: Rc<GLCore>, mesh: M, material: Rc<Mat>) -> Self {
+	pub fn new(mesh: M, material: Rc<Mat>) -> Self {
 		Self {
-			glcore,
 			material,
 			mesh,
 		}
@@ -536,10 +473,6 @@ impl<M: Mesh, Mat: Material> MeshWithMaterial<M, Mat> {
 }
 
 impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
-	fn get_glcore(&self) -> &GLCore {
-		self.glcore.as_ref()
-	}
-
 	fn get_primitive(&self) -> PrimitiveMode {
 		self.mesh.get_primitive()
 	}
@@ -560,13 +493,3 @@ impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
 		self.mesh.get_command_buffer()
 	}
 }
-
-impl<M: Mesh, Mat: Material> Debug for MeshWithMaterial<M, Mat> {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		f.debug_struct("MeshWithMaterial")
-		.field("material", &self.material)
-		.field("mesh", &self.mesh)
-		.finish()
-	}
-}
-
