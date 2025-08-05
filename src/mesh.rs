@@ -59,6 +59,8 @@ pub struct StaticMesh {
 	pub element_buffer: Option<ElementBuffer>,
 	pub instance_buffer: Option<Buffer>,
 	pub command_buffer: Option<Buffer>,
+	pub vertex_stride: usize,
+	pub instance_stride: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +70,8 @@ pub struct EditableMesh {
 	pub element_buffer: Option<ElementBufferVec>,
 	pub instance_buffer: Option<BufferVec>,
 	pub command_buffer: Option<BufferVec>,
+	pub vertex_stride: usize,
+	pub instance_stride: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -80,25 +84,29 @@ pub struct DynamicMesh<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: 
 }
 
 impl StaticMesh {
-	pub fn new(primitive: PrimitiveMode, vertex_buffer: Buffer, element_buffer: Option<ElementBuffer>, instance_buffer: Option<Buffer>, command_buffer: Option<Buffer>) -> Self {
+	pub fn new(primitive: PrimitiveMode, vertex_buffer: Buffer, vertex_stride: usize, element_buffer: Option<ElementBuffer>, instance_buffer: Option<Buffer>, instance_stride: usize, command_buffer: Option<Buffer>) -> Self {
 		Self {
 			primitive,
 			element_buffer,
 			vertex_buffer,
 			instance_buffer,
 			command_buffer,
+			vertex_stride,
+			instance_stride,
 		}
 	}
 }
 
 impl EditableMesh {
-	pub fn new(primitive: PrimitiveMode, vertex_buffer: BufferVec, element_buffer: Option<ElementBufferVec>, instance_buffer: Option<BufferVec>, command_buffer: Option<BufferVec>) -> Self {
+	pub fn new(primitive: PrimitiveMode, vertex_buffer: BufferVec, vertex_stride: usize, element_buffer: Option<ElementBufferVec>, instance_buffer: Option<BufferVec>, instance_stride: usize, command_buffer: Option<BufferVec>) -> Self {
 		Self {
 			primitive,
 			vertex_buffer,
 			element_buffer,
 			instance_buffer,
 			command_buffer,
+			vertex_stride,
+			instance_stride,
 		}
 	}
 }
@@ -262,6 +270,8 @@ impl From<StaticMesh> for EditableMesh {
 			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
+			vertex_stride: val.vertex_stride,
+			instance_stride: val.instance_stride,
 		}
 	}
 }
@@ -274,6 +284,8 @@ impl From<EditableMesh> for StaticMesh {
 			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
+			vertex_stride: val.vertex_stride,
+			instance_stride: val.instance_stride,
 		}
 	}
 }
@@ -298,6 +310,8 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<
 			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
+			vertex_stride: size_of::<T>(),
+			instance_stride: size_of::<I>(),
 		}
 	}
 }
@@ -310,6 +324,8 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<
 			element_buffer: val.element_buffer.map(|b|b.into()),
 			instance_buffer: val.instance_buffer.map(|b|b.into()),
 			command_buffer: val.command_buffer.map(|b|b.into()),
+			vertex_stride: size_of::<T>(),
+			instance_stride: size_of::<I>(),
 		}
 	}
 }
@@ -332,6 +348,13 @@ pub trait Mesh: Debug {
 	fn get_element_buffer(&self) -> Option<ElementBufferRef>;
 	fn get_instance_buffer(&self) -> Option<&Buffer>;
 	fn get_command_buffer(&self) -> Option<&Buffer>;
+
+	fn get_vertex_stride(&self) -> usize;
+	fn get_instance_stride(&self) -> usize;
+	fn get_vertex_count(&self) -> usize;
+	fn get_element_count(&self) -> usize;
+	fn get_instance_count(&self) -> usize;
+	fn get_command_count(&self) -> usize;
 }
 
 impl Mesh for StaticMesh {
@@ -360,6 +383,46 @@ impl Mesh for StaticMesh {
 			Some(buffer)
 		} else {
 			None
+		}
+	}
+
+	fn get_vertex_stride(&self) -> usize {
+		self.vertex_stride
+	}
+
+	fn get_instance_stride(&self) -> usize {
+		self.instance_stride
+	}
+
+	fn get_vertex_count(&self) -> usize {
+		self.vertex_buffer.size() / self.vertex_stride
+	}
+
+	fn get_element_count(&self) -> usize {
+		if let Some(element_buffer) = &self.element_buffer {
+			element_buffer.get_num_elements()
+		} else {
+			0
+		}
+	}
+
+	fn get_instance_count(&self) -> usize {
+		if let Some(buffer) = &self.instance_buffer {
+			buffer.size() / self.instance_stride
+		} else {
+			0
+		}
+	}
+
+	fn get_command_count(&self) -> usize {
+		if let Some(buffer) = &self.command_buffer {
+			if let Some(_) = &self.element_buffer {
+				buffer.size() / size_of::<DrawElementsCommand>()
+			} else {
+				buffer.size() / size_of::<DrawArrayCommand>()
+			}
+		} else {
+			0
 		}
 	}
 }
@@ -392,6 +455,46 @@ impl Mesh for EditableMesh {
 			None
 		}
 	}
+
+	fn get_vertex_stride(&self) -> usize {
+		self.vertex_stride
+	}
+
+	fn get_instance_stride(&self) -> usize {
+		self.instance_stride
+	}
+
+	fn get_vertex_count(&self) -> usize {
+		self.vertex_buffer.size_in_bytes() / self.vertex_stride
+	}
+
+	fn get_element_count(&self) -> usize {
+		if let Some(element_buffer) = &self.element_buffer {
+			element_buffer.get_num_elements()
+		} else {
+			0
+		}
+	}
+
+	fn get_instance_count(&self) -> usize {
+		if let Some(buffer) = &self.instance_buffer {
+			buffer.size_in_bytes() / self.instance_stride
+		} else {
+			0
+		}
+	}
+
+	fn get_command_count(&self) -> usize {
+		if let Some(buffer) = &self.command_buffer {
+			if let Some(_) = &self.element_buffer {
+				buffer.size_in_bytes() / size_of::<DrawElementsCommand>()
+			} else {
+				buffer.size_in_bytes() / size_of::<DrawArrayCommand>()
+			}
+		} else {
+			0
+		}
+	}
 }
 
 impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh for DynamicMesh<T, E, I, C> {
@@ -420,6 +523,42 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh 
 			Some(buffer.get_buffer())
 		} else {
 			None
+		}
+	}
+
+	fn get_vertex_stride(&self) -> usize {
+		size_of::<T>()
+	}
+
+	fn get_instance_stride(&self) -> usize {
+		size_of::<I>()
+	}
+
+	fn get_vertex_count(&self) -> usize {
+		self.vertex_buffer.len()
+	}
+
+	fn get_element_count(&self) -> usize {
+		if let Some(element_buffer) = &self.element_buffer {
+			element_buffer.get_num_elements()
+		} else {
+			0
+		}
+	}
+
+	fn get_instance_count(&self) -> usize {
+		if let Some(buffer) = &self.instance_buffer {
+			buffer.len()
+		} else {
+			0
+		}
+	}
+
+	fn get_command_count(&self) -> usize {
+		if let Some(buffer) = &self.command_buffer {
+			buffer.len()
+		} else {
+			0
 		}
 	}
 }
@@ -466,6 +605,10 @@ impl<M: Mesh, Mat: Material> MeshWithMaterial<M, Mat> {
 			mesh,
 		}
 	}
+
+	pub fn get_material(&self) -> &Mat {
+		&self.material
+	}
 }
 
 impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
@@ -487,5 +630,29 @@ impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
 
 	fn get_command_buffer(&self) -> Option<&Buffer> {
 		self.mesh.get_command_buffer()
+	}
+
+	fn get_vertex_stride(&self) -> usize {
+		self.mesh.get_vertex_stride()
+	}
+
+	fn get_instance_stride(&self) -> usize {
+		self.mesh.get_instance_stride()
+	}
+
+	fn get_vertex_count(&self) -> usize {
+		self.mesh.get_vertex_count()
+	}
+
+	fn get_element_count(&self) -> usize {
+		self.mesh.get_element_count()
+	}
+
+	fn get_instance_count(&self) -> usize {
+		self.mesh.get_instance_count()
+	}
+
+	fn get_command_count(&self) -> usize {
+		self.mesh.get_command_count()
 	}
 }
