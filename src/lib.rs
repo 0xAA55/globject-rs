@@ -9,6 +9,7 @@ pub mod gltexture;
 pub mod glframebuffer;
 pub mod buffervec;
 pub mod mesh;
+pub mod material;
 pub mod pipeline;
 
 extern crate nalgebra_glm as glm;

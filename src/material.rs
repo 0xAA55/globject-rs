@@ -1,0 +1,120 @@
+
+use glcore::*;
+use crate::glbuffer::*;
+use crate::gltexture::*;
+use std::{
+	collections::HashMap,
+	fmt::{self, Debug, Formatter},
+	rc::Rc,
+};
+use glm::*;
+
+#[derive(Debug, Clone)]
+pub enum TextureOrColor {
+	Texture(Rc<Texture>),
+	Color(Vec4),
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct MaterialLegacy {
+	pub ambient: TextureOrColor,
+	pub diffuse: TextureOrColor,
+	pub specular: TextureOrColor,
+	pub normal: TextureOrColor,
+	pub emissive: TextureOrColor,
+	pub others: HashMap<&'static str, TextureOrColor>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct MaterialPbr {
+	pub albedo: TextureOrColor,
+	pub normal: TextureOrColor,
+	pub ao: TextureOrColor,
+	pub displacement: TextureOrColor,
+	pub roughness: TextureOrColor,
+	pub metalness: TextureOrColor,
+	pub emissive: TextureOrColor,
+	pub others: HashMap<&'static str, TextureOrColor>,
+}
+
+impl Default for TextureOrColor {
+	fn default() -> Self {
+		Self::Color(Vec4::new(0.5, 0.5, 0.5, 1.0))
+	}
+}
+
+pub trait Material: Debug {
+	fn get_ambient(&self) -> Option<&TextureOrColor>;
+	fn get_diffuse(&self) -> Option<&TextureOrColor>;
+	fn get_specular(&self) -> Option<&TextureOrColor>;
+	fn get_albedo(&self) -> Option<&TextureOrColor>;
+	fn get_ao(&self) -> Option<&TextureOrColor>;
+	fn get_displacement(&self) -> Option<&TextureOrColor>;
+	fn get_roughness(&self) -> Option<&TextureOrColor>;
+	fn get_metalness(&self) -> Option<&TextureOrColor>;
+	fn get_normal(&self) -> Option<&TextureOrColor>;
+	fn get_emissive(&self) -> Option<&TextureOrColor>;
+	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor>;
+}
+
+impl Material for MaterialLegacy {
+	fn get_ambient(&self) ->		Option<&TextureOrColor> {Some(&self.ambient)}
+	fn get_diffuse(&self) ->		Option<&TextureOrColor> {Some(&self.diffuse)}
+	fn get_specular(&self) ->		Option<&TextureOrColor> {Some(&self.specular)}
+	fn get_normal(&self) ->			Option<&TextureOrColor> {Some(&self.normal)}
+	fn get_emissive(&self) ->		Option<&TextureOrColor> {Some(&self.emissive)}
+
+	fn get_albedo(&self) ->			Option<&TextureOrColor> {None}
+	fn get_ao(&self) ->				Option<&TextureOrColor> {None}
+	fn get_displacement(&self) ->	Option<&TextureOrColor> {None}
+	fn get_roughness(&self) ->		Option<&TextureOrColor> {None}
+	fn get_metalness(&self) ->		Option<&TextureOrColor> {None}
+
+	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
+		match self.others.get(name) {
+			Some(data) => Some(data),
+			None => {
+				match name {
+					"ambient" =>	self.get_ambient(),
+					"diffuse" =>	self.get_diffuse(),
+					"specular" =>	self.get_specular(),
+					"normal" =>		self.get_normal(),
+					"emissive" =>	self.get_emissive(),
+					_ => None,
+				}
+			}
+		}
+	}
+}
+
+impl Material for MaterialPbr {
+	fn get_albedo(&self) ->			Option<&TextureOrColor> {Some(&self.albedo)}
+	fn get_ao(&self) ->				Option<&TextureOrColor> {Some(&self.ao)}
+	fn get_displacement(&self) ->	Option<&TextureOrColor> {Some(&self.displacement)}
+	fn get_roughness(&self) ->		Option<&TextureOrColor> {Some(&self.roughness)}
+	fn get_metalness(&self) ->		Option<&TextureOrColor> {Some(&self.metalness)}
+	fn get_normal(&self) ->			Option<&TextureOrColor> {Some(&self.normal)}
+	fn get_emissive(&self) ->		Option<&TextureOrColor> {Some(&self.emissive)}
+
+	fn get_ambient(&self) ->		Option<&TextureOrColor> {None}
+	fn get_diffuse(&self) ->		Option<&TextureOrColor> {None}
+	fn get_specular(&self) ->		Option<&TextureOrColor> {None}
+
+	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
+		match self.others.get(name) {
+			Some(data) => Some(data),
+			None => {
+				match name {
+					"albedo" =>			self.get_albedo(),
+					"ao" =>				self.get_ao(),
+					"displacement" =>	self.get_displacement(),
+					"roughness" =>		self.get_roughness(),
+					"metalness" =>		self.get_metalness(),
+					"normal" =>			self.get_normal(),
+					"emissive" =>		self.get_emissive(),
+					_ => None,
+				}
+			}
+		}
+	}
+}
