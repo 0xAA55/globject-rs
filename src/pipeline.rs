@@ -3,7 +3,7 @@ use crate::prelude::*;
 use std::{
 	any::Any,
 	collections::BTreeMap,
-	ffi::{CString, c_void},
+	ffi::c_void,
 	fmt::{self, Debug, Formatter},
 	marker::PhantomData,
 	mem::size_of,
@@ -122,8 +122,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 				if p_size != datainfo.size || p_rows != datainfo.rows {
 					panic!("The size and rows of the shader attrib is {p_size}x{p_rows}, but the given member of the vertex struct is {}x{}", datainfo.size, datainfo.rows);
 				}
-				let c_field_name = CString::new(field_name).unwrap();
-				let location = self.glcore.glGetAttribLocation(self.shader.get_name(), c_field_name.as_ptr());
+				let location = self.shader.get_attrib_location(field_name);
 				if location >= 0 {
 					let location = location as u32;
 					for row in 0..datainfo.rows {

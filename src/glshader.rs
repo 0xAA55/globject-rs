@@ -4,6 +4,7 @@
 use crate::prelude::*;
 use std::{
 	collections::BTreeMap,
+	ffi::CString,
 	fmt::{self, Debug, Display, Formatter},
 	mem::{transmute, size_of},
 	path::Path,
@@ -248,6 +249,12 @@ impl Shader {
 			ret.insert(name, ShaderInputVarType{type_, size});
 		}
 		Ok(ret)
+	}
+
+	/// Get the location of the shader attrib
+	pub fn get_attrib_location(&self, attrib_name: &str) -> i32 {
+		let attrib_name = CString::new(attrib_name).unwrap();
+		self.glcore.glGetAttribLocation(self.program, attrib_name.as_ptr())
 	}
 
 	/// Get the compiled + linked program binary
