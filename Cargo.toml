@@ -2,8 +2,12 @@
 name = "globject-rs"
 version = "0.1.0"
 edition = "2024"
-license = "LICENSE"
+authors = ["0xAA55 <838816058@qq.com>"]
+repository = "https://github.com/0xAA55/globject-rs"
+readme = "Readme.md"
+license-file = "LICENSE"
 description = "OpenGL Object Wrapper for Rust"
+keywords = ["OpenGL", "GPU"]
 
 [dependencies]
 bincode = "2.0.1"
