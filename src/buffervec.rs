@@ -1,6 +1,4 @@
 
-#![allow(dead_code)]
-
 use glcore::*;
 use crate::glbuffer::*;
 use bitvec::vec::BitVec;
