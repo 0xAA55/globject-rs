@@ -3,6 +3,7 @@ use glcore::*;
 use crate::glbuffer::*;
 use crate::glcmdbuf::*;
 use crate::buffervec::*;
+use crate::material::*;
 use std::{
 	fmt::{self, Debug, Formatter},
 	rc::Rc,
@@ -516,3 +517,56 @@ impl Debug for ElementType {
 		}
 	}
 }
+
+#[derive(Clone)]
+pub struct MeshWithMaterial<M: Mesh, Mat: Material> {
+	glcore: Rc<GLCore>,
+	material: Rc<Mat>,
+	mesh: M,
+}
+
+impl<M: Mesh, Mat: Material> MeshWithMaterial<M, Mat> {
+	pub fn new(glcore: Rc<GLCore>, mesh: M, material: Rc<Mat>) -> Self {
+		Self {
+			glcore,
+			material,
+			mesh,
+		}
+	}
+}
+
+impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
+	fn get_glcore(&self) -> &GLCore {
+		self.glcore.as_ref()
+	}
+
+	fn get_primitive(&self) -> PrimitiveMode {
+		self.mesh.get_primitive()
+	}
+
+	fn get_vertex_buffer(&self) -> &Buffer {
+		self.mesh.get_vertex_buffer()
+	}
+
+	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
+		self.mesh.get_element_buffer()
+	}
+
+	fn get_instance_buffer(&self) -> Option<&Buffer> {
+		self.mesh.get_instance_buffer()
+	}
+
+	fn get_command_buffer(&self) -> Option<&Buffer> {
+		self.mesh.get_command_buffer()
+	}
+}
+
+impl<M: Mesh, Mat: Material> Debug for MeshWithMaterial<M, Mat> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.debug_struct("MeshWithMaterial")
+		.field("material", &self.material)
+		.field("mesh", &self.mesh)
+		.finish()
+	}
+}
+
