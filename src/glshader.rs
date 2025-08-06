@@ -53,6 +53,7 @@ pub struct ShaderUse<'a> {
 	pub shader: &'a Shader,
 }
 
+/// The pre-compiled OpenGL shader binary
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct ShaderBinary {
 	format: u32,
@@ -60,12 +61,14 @@ pub struct ShaderBinary {
 	binary: Vec<u8>,
 }
 
+/// The error info of loading the shader binary
 #[derive(Debug)]
 pub enum ShaderBinaryLoadError {
 	IOError(std::io::Error),
 	DecodeError(bincode::error::DecodeError),
 }
 
+/// The error info of storing the shader binary
 #[derive(Debug)]
 pub enum ShaderBinarySaveError {
 	IOError(std::io::Error),
@@ -111,6 +114,7 @@ pub enum ShaderInputType {
 	DMat4x3 = GL_DOUBLE_MAT4x3 as isize,
 }
 
+/// The OpenGL attrib type with length
 #[derive(Debug, Clone, Copy)]
 pub struct ShaderInputVarType {
 	pub type_: ShaderInputType,
@@ -345,7 +349,7 @@ impl<'a> ShaderUse<'a> {
 	}
 
 	/// Set shader uniform inputs by a material
-	pub fn setup_material_uniforms<M: Material>(&self, material: &M, prefix: Option<&str>, camel_case: bool) {
+	pub fn setup_material_uniforms(&self, material: &dyn Material, prefix: Option<&str>, camel_case: bool) {
 		let glcore = &self.shader.glcore;
 		let shader_uniforms = self.shader.get_active_uniforms().unwrap();
 		let texture_names = material.get_names();
