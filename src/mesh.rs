@@ -1,7 +1,9 @@
 
 use crate::prelude::*;
 use std::{
+	any::type_name,
 	fmt::{self, Debug, Formatter},
+	marker::PhantomData,
 	rc::Rc,
 };
 
@@ -30,113 +32,53 @@ pub enum ElementType {
 	U32 = GL_UNSIGNED_INT as isize,
 }
 
-/// The element buffer for the mesh has `element_type` to tell the format of the indices
+/// The mesh, every type of buffer is wrapped in a `BufferVec` can be manipulated just like a `Vec`
 #[derive(Debug, Clone)]
-pub struct ElementBuffer {
-	pub buffer: Buffer,
-	pub element_type: ElementType,
-}
-
-/// The `BufferVec` variant of the `ElementBuffer`
-#[derive(Debug, Clone)]
-pub struct ElementBufferVec {
-	pub buffer: BufferVec,
-	pub element_type: ElementType,
-}
-
-/// The `BufferVecDynamic` variant of the `ElementBuffer`
-#[derive(Debug, Clone)]
-pub struct ElementBufferVecDynamic<T: BufferVecItem> {
-	pub buffer: BufferVecDynamic<T>,
-	pub element_type: ElementType,
-}
-
-/// A reference to a buffer with the format of the indices
-#[derive(Debug, Clone)]
-pub struct ElementBufferRef<'a> {
-	pub buffer: &'a Buffer,
-	pub element_type: ElementType,
-}
-
-/// The static mesh, to manipulate the data of the mesh, must explicitly manipulate the `Buffer` data in bytes of each type of the buffer
-/// The mesh is considered not to be changed frequently
-/// Data was only stored in the GPU; every update to the buffer caused data to be transferred to the GPU
-#[derive(Debug, Clone)]
-pub struct StaticMesh {
+pub struct Mesh<BV, V, BE, E, BI, I, BC, C>
+where
+	BV: BufferVec<V>,
+	BE: BufferVec<E>,
+	BI: BufferVec<I>,
+	BC: BufferVec<C>,
+	V: BufferVecItem,
+	E: BufferVecItem,
+	I: BufferVecItem,
+	C: BufferVecItem {
 	pub primitive: PrimitiveMode,
-	pub vertex_buffer: Buffer,
-	pub element_buffer: Option<ElementBuffer>,
-	pub instance_buffer: Option<Buffer>,
-	pub command_buffer: Option<Buffer>,
-	pub vertex_stride: usize,
-	pub instance_stride: usize,
+	pub vertex_buffer: BV,
+	pub element_buffer: Option<BE>,
+	pub instance_buffer: Option<BI>,
+	pub command_buffer: Option<BC>,
+	_vertex_type: PhantomData<V>,
+	_element_type: PhantomData<E>,
+	_instance_type: PhantomData<I>,
+	_command_type: PhantomData<C>,
 }
 
-/// The editable mesh, every type of buffer is wrapped in a `BufferVec`, can be manipulated slightly easier than the static mesh
-/// The mesh is considered not to be changed frequently
-/// Data was only stored in the GPU; every update to the buffer caused data to be transferred to the GPU
-#[derive(Debug, Clone)]
-pub struct EditableMesh {
-	pub primitive: PrimitiveMode,
-	pub vertex_buffer: BufferVec,
-	pub element_buffer: Option<ElementBufferVec>,
-	pub instance_buffer: Option<BufferVec>,
-	pub command_buffer: Option<BufferVec>,
-	pub vertex_stride: usize,
-	pub instance_stride: usize,
-}
+pub type StaticMesh<V, E, I, C> = Mesh<BufferVecStatic<V>, V, BufferVecStatic<E>, E, BufferVecDynamic<I>, I, BufferVecDynamic<C>, C>;
 
-/// The dynamic mesh, every type of buffer is wrapped in a `BufferVecDynamic` can be manipulated just like a `Vec`
-/// There are caches in the system memory to be updated by indexing/slicing, while the buffers remember every item's updated flags using a bitmap
-/// When the `flush()` method is called, every buffer flushes its cache to the GPU. Only the changed part was flushed
-#[derive(Debug, Clone)]
-pub struct DynamicMesh<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> {
-	pub primitive: PrimitiveMode,
-	pub vertex_buffer: BufferVecDynamic<T>,
-	pub element_buffer: Option<ElementBufferVecDynamic<E>>,
-	pub instance_buffer: Option<BufferVecDynamic<I>>,
-	pub command_buffer: Option<BufferVecDynamic<C>>,
-}
-
-impl StaticMesh {
-	/// Create a new static mesh from the buffers
-	pub fn new(primitive: PrimitiveMode, vertex_buffer: Buffer, vertex_stride: usize, element_buffer: Option<ElementBuffer>, instance_buffer: Option<Buffer>, instance_stride: usize, command_buffer: Option<Buffer>) -> Self {
-		Self {
-			primitive,
-			element_buffer,
-			vertex_buffer,
-			instance_buffer,
-			command_buffer,
-			vertex_stride,
-			instance_stride,
-		}
-	}
-}
-
-impl EditableMesh {
-	/// Create a new editable mesh from the buffers
-	pub fn new(primitive: PrimitiveMode, vertex_buffer: BufferVec, vertex_stride: usize, element_buffer: Option<ElementBufferVec>, instance_buffer: Option<BufferVec>, instance_stride: usize, command_buffer: Option<BufferVec>) -> Self {
-		Self {
-			primitive,
-			vertex_buffer,
-			element_buffer,
-			instance_buffer,
-			command_buffer,
-			vertex_stride,
-			instance_stride,
-		}
-	}
-}
-
-impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> DynamicMesh<T, E, I, C> {
+impl<BV, V, BE, E, BI, I, BC, C> Mesh<BV, V, BE, E, BI, I, BC, C>
+where
+	BV: BufferVec<V>,
+	BE: BufferVec<E>,
+	BI: BufferVec<I>,
+	BC: BufferVec<C>,
+	V: BufferVecItem,
+	E: BufferVecItem,
+	I: BufferVecItem,
+	C: BufferVecItem {
 	/// Create a new dynamic mesh from the buffers
-	pub fn new(primitive: PrimitiveMode, vertex_buffer: BufferVecDynamic<T>, element_buffer: Option<ElementBufferVecDynamic<E>>, instance_buffer: Option<BufferVecDynamic<I>>, command_buffer: Option<BufferVecDynamic<C>>) -> Self {
+	pub fn new(primitive: PrimitiveMode, vertex_buffer: BV, element_buffer: Option<BE>, instance_buffer: Option<BI>, command_buffer: Option<BC>) -> Self {
 		Self {
 			primitive,
 			vertex_buffer,
 			element_buffer,
 			instance_buffer,
 			command_buffer,
+			_vertex_type: PhantomData,
+			_element_type: PhantomData,
+			_instance_type: PhantomData,
+			_command_type: PhantomData,
 		}
 	}
 
@@ -160,235 +102,7 @@ impl ElementType {
 	}
 }
 
-pub trait ElementBufferCommon: Debug {
-	/// Retrieve the underlying buffer
-	fn get_buffer(&self) -> &Buffer;
-
-	/// Get the type of the elements
-	fn get_type(&self) -> ElementType;
-
-	/// Get how many of elements in the buffer
-	fn get_num_elements(&self) -> usize;
-
-	/// Bind the buffer, create a binding guard to manage the binding state
-	fn bind<'a>(&'a self) -> BufferBind<'a> {
-		self.get_buffer().bind()
-	}
-
-	/// Bind the buffer to a specified target, create a binding guard to manage the binding state
-	fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
-		self.get_buffer().bind_to(target)
-	}
-
-	/// Flush the cache if the element buffer has a caching system
-	fn flush(&mut self) {}
-}
-
-impl ElementBufferCommon for ElementBuffer {
-	fn get_buffer(&self) -> &Buffer {
-		&self.buffer
-	}
-
-	fn get_type(&self) -> ElementType {
-		self.element_type
-	}
-
-	fn get_num_elements(&self) -> usize {
-		self.buffer.size() / self.element_type.get_size()
-	}
-}
-
-impl ElementBufferCommon for ElementBufferVec {
-	fn get_buffer(&self) -> &Buffer {
-		self.buffer.get_buffer()
-	}
-
-	fn get_type(&self) -> ElementType {
-		self.element_type
-	}
-
-	fn get_num_elements(&self) -> usize {
-		self.buffer.size_in_bytes() / self.element_type.get_size()
-	}
-}
-
-impl<T: BufferVecItem> ElementBufferCommon for ElementBufferVecDynamic<T> {
-	fn get_buffer(&self) -> &Buffer {
-		self.buffer.get_buffer()
-	}
-
-	fn get_type(&self) -> ElementType {
-		self.element_type
-	}
-
-	fn get_num_elements(&self) -> usize {
-		self.buffer.len()
-	}
-
-	fn flush(&mut self) {
-		self.buffer.flush()
-	}
-}
-
-impl<'a> ElementBufferRef<'a>  {
-	/// Create a new `ElementBufferRef`
-	pub fn new(buffer: &'a Buffer, element_type: ElementType) -> Self {
-		Self {
-			buffer,
-			element_type,
-		}
-	}
-}
-
-impl<'a> ElementBufferCommon for ElementBufferRef<'a> {
-	fn get_buffer(&self) -> &Buffer {
-		&self.buffer
-	}
-
-	fn get_type(&self) -> ElementType {
-		self.element_type
-	}
-
-	fn get_num_elements(&self) -> usize {
-		self.buffer.size() / self.element_type.get_size()
-	}
-}
-
-impl From<ElementBuffer> for ElementBufferVec {
-	fn from(val: ElementBuffer) -> Self {
-		Self {
-			buffer: val.buffer.into(),
-			element_type: val.element_type,
-		}
-	}
-}
-
-impl From<ElementBufferVec> for ElementBuffer {
-	fn from(val: ElementBufferVec) -> Self {
-		Self {
-			buffer: val.buffer.into(),
-			element_type: val.element_type,
-		}
-	}
-}
-
-impl<T: BufferVecItem> From<ElementBuffer> for ElementBufferVecDynamic<T> {
-	fn from(val: ElementBuffer) -> Self {
-		Self {
-			buffer: val.buffer.into(),
-			element_type: val.element_type,
-		}
-	}
-}
-
-impl<T: BufferVecItem> From<ElementBufferVec> for ElementBufferVecDynamic<T> {
-	fn from(val: ElementBufferVec) -> Self {
-		Self {
-			buffer: val.buffer.into(),
-			element_type: val.element_type,
-		}
-	}
-}
-
-impl<T: BufferVecItem> From<ElementBufferVecDynamic<T>> for ElementBuffer {
-	fn from(val: ElementBufferVecDynamic<T>) -> Self {
-		Self {
-			buffer: val.buffer.into(),
-			element_type: val.element_type,
-		}
-	}
-}
-
-impl<T: BufferVecItem> From<ElementBufferVecDynamic<T>> for ElementBufferVec {
-	fn from(val: ElementBufferVecDynamic<T>) -> Self {
-		Self {
-			buffer: val.buffer.into(),
-			element_type: val.element_type,
-		}
-	}
-}
-
-impl From<StaticMesh> for EditableMesh {
-	fn from(val: StaticMesh) -> Self {
-		EditableMesh {
-			primitive: val.primitive,
-			vertex_buffer: val.vertex_buffer.into(),
-			element_buffer: val.element_buffer.map(|b|b.into()),
-			instance_buffer: val.instance_buffer.map(|b|b.into()),
-			command_buffer: val.command_buffer.map(|b|b.into()),
-			vertex_stride: val.vertex_stride,
-			instance_stride: val.instance_stride,
-		}
-	}
-}
-
-impl From<EditableMesh> for StaticMesh {
-	fn from(val: EditableMesh) -> Self {
-		StaticMesh {
-			primitive: val.primitive,
-			vertex_buffer: val.vertex_buffer.into(),
-			element_buffer: val.element_buffer.map(|b|b.into()),
-			instance_buffer: val.instance_buffer.map(|b|b.into()),
-			command_buffer: val.command_buffer.map(|b|b.into()),
-			vertex_stride: val.vertex_stride,
-			instance_stride: val.instance_stride,
-		}
-	}
-}
-
-impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<StaticMesh> for DynamicMesh<T, E, I, C> {
-	fn from(val: StaticMesh) -> Self {
-		DynamicMesh {
-			primitive: val.primitive,
-			vertex_buffer: val.vertex_buffer.into(),
-			element_buffer: val.element_buffer.map(|b|b.into()),
-			instance_buffer: val.instance_buffer.map(|b|b.into()),
-			command_buffer: val.command_buffer.map(|b|b.into()),
-		}
-	}
-}
-
-impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<DynamicMesh<T, E, I, C>> for StaticMesh {
-	fn from(val: DynamicMesh<T, E, I, C>) -> Self {
-		StaticMesh {
-			primitive: val.primitive,
-			vertex_buffer: val.vertex_buffer.into(),
-			element_buffer: val.element_buffer.map(|b|b.into()),
-			instance_buffer: val.instance_buffer.map(|b|b.into()),
-			command_buffer: val.command_buffer.map(|b|b.into()),
-			vertex_stride: size_of::<T>(),
-			instance_stride: size_of::<I>(),
-		}
-	}
-}
-
-impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<DynamicMesh<T, E, I, C>> for EditableMesh {
-	fn from(val: DynamicMesh<T, E, I, C>) -> Self {
-		EditableMesh {
-			primitive: val.primitive,
-			vertex_buffer: val.vertex_buffer.into(),
-			element_buffer: val.element_buffer.map(|b|b.into()),
-			instance_buffer: val.instance_buffer.map(|b|b.into()),
-			command_buffer: val.command_buffer.map(|b|b.into()),
-			vertex_stride: size_of::<T>(),
-			instance_stride: size_of::<I>(),
-		}
-	}
-}
-
-impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> From<EditableMesh> for DynamicMesh<T, E, I, C> {
-	fn from(val: EditableMesh) -> Self {
-		DynamicMesh {
-			primitive: val.primitive,
-			vertex_buffer: val.vertex_buffer.into(),
-			element_buffer: val.element_buffer.map(|b|b.into()),
-			instance_buffer: val.instance_buffer.map(|b|b.into()),
-			command_buffer: val.command_buffer.map(|b|b.into()),
-		}
-	}
-}
-
-pub trait Mesh: Debug {
+pub trait GenericMesh: Debug {
 	/// Get the primitive mode of the mesh
 	fn get_primitive(&self) -> PrimitiveMode;
 
@@ -396,7 +110,10 @@ pub trait Mesh: Debug {
 	fn get_vertex_buffer(&self) -> &Buffer;
 
 	/// Get the element buffer of the mesh
-	fn get_element_buffer(&self) -> Option<ElementBufferRef>;
+	fn get_element_buffer(&self) -> Option<&Buffer>;
+
+	/// Get the type of the element buffer
+	fn get_element_type(&self) -> ElementType;
 
 	/// Get the instance buffer of the mesh
 	fn get_instance_buffer(&self) -> Option<&Buffer>;
@@ -432,7 +149,7 @@ pub trait Mesh: Debug {
 
 	/// Bind the element buffer
 	fn bind_element_buffer<'a>(&'a self) -> Option<BufferBind<'a>> {
-		self.get_element_buffer().map(|b|b.buffer.bind_to(BufferTarget::ElementArrayBuffer))
+		self.get_element_buffer().map(|b|b.bind_to(BufferTarget::ElementArrayBuffer))
 	}
 
 	/// Bind the instance buffer
@@ -446,77 +163,16 @@ pub trait Mesh: Debug {
 	}
 }
 
-impl Mesh for StaticMesh {
-	fn get_primitive(&self) -> PrimitiveMode {
-		self.primitive
-	}
-
-	fn get_vertex_buffer(&self) -> &Buffer {
-		&self.vertex_buffer
-	}
-
-	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
-		self.element_buffer.as_ref().map(|buffer| ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
-	}
-
-	fn get_instance_buffer(&self) -> Option<&Buffer> {
-		if let Some(buffer) = &self.instance_buffer {
-			Some(buffer)
-		} else {
-			None
-		}
-	}
-
-	fn get_command_buffer(&self) -> Option<&Buffer> {
-		if let Some(buffer) = &self.command_buffer {
-			Some(buffer)
-		} else {
-			None
-		}
-	}
-
-	fn get_vertex_stride(&self) -> usize {
-		self.vertex_stride
-	}
-
-	fn get_instance_stride(&self) -> usize {
-		self.instance_stride
-	}
-
-	fn get_vertex_count(&self) -> usize {
-		self.vertex_buffer.size() / self.vertex_stride
-	}
-
-	fn get_element_count(&self) -> usize {
-		if let Some(element_buffer) = &self.element_buffer {
-			element_buffer.get_num_elements()
-		} else {
-			0
-		}
-	}
-
-	fn get_instance_count(&self) -> usize {
-		if let Some(buffer) = &self.instance_buffer {
-			buffer.size() / self.instance_stride
-		} else {
-			0
-		}
-	}
-
-	fn get_command_count(&self) -> usize {
-		if let Some(buffer) = &self.command_buffer {
-			if let Some(_) = &self.element_buffer {
-				buffer.size() / size_of::<DrawElementsCommand>()
-			} else {
-				buffer.size() / size_of::<DrawArrayCommand>()
-			}
-		} else {
-			0
-		}
-	}
-}
-
-impl Mesh for EditableMesh {
+impl<BV, V, BE, E, BI, I, BC, C> GenericMesh for Mesh<BV, V, BE, E, BI, I, BC, C>
+where
+	BV: BufferVec<V>,
+	BE: BufferVec<E>,
+	BI: BufferVec<I>,
+	BC: BufferVec<C>,
+	V: BufferVecItem,
+	E: BufferVecItem,
+	I: BufferVecItem,
+	C: BufferVecItem {
 	fn get_primitive(&self) -> PrimitiveMode {
 		self.primitive
 	}
@@ -525,8 +181,21 @@ impl Mesh for EditableMesh {
 		self.vertex_buffer.get_buffer()
 	}
 	
-	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
-		self.element_buffer.as_ref().map(|buffer| ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
+	fn get_element_buffer(&self) -> Option<&Buffer> {
+		if let Some(buffer) = &self.element_buffer {
+			Some(buffer.get_buffer())
+		} else {
+			None
+		}
+	}
+
+	fn get_element_type(&self) -> ElementType {
+		match size_of::<E>() {
+			1 => ElementType::U8,
+			2 => ElementType::U16,
+			4 => ElementType::U32,
+			_ => panic!("Unsupported element type: {}", type_name::<E>()),
+		}
 	}
 
 	fn get_instance_buffer(&self) -> Option<&Buffer> {
@@ -546,77 +215,7 @@ impl Mesh for EditableMesh {
 	}
 
 	fn get_vertex_stride(&self) -> usize {
-		self.vertex_stride
-	}
-
-	fn get_instance_stride(&self) -> usize {
-		self.instance_stride
-	}
-
-	fn get_vertex_count(&self) -> usize {
-		self.vertex_buffer.size_in_bytes() / self.vertex_stride
-	}
-
-	fn get_element_count(&self) -> usize {
-		if let Some(element_buffer) = &self.element_buffer {
-			element_buffer.get_num_elements()
-		} else {
-			0
-		}
-	}
-
-	fn get_instance_count(&self) -> usize {
-		if let Some(buffer) = &self.instance_buffer {
-			buffer.size_in_bytes() / self.instance_stride
-		} else {
-			0
-		}
-	}
-
-	fn get_command_count(&self) -> usize {
-		if let Some(buffer) = &self.command_buffer {
-			if let Some(_) = &self.element_buffer {
-				buffer.size_in_bytes() / size_of::<DrawElementsCommand>()
-			} else {
-				buffer.size_in_bytes() / size_of::<DrawArrayCommand>()
-			}
-		} else {
-			0
-		}
-	}
-}
-
-impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh for DynamicMesh<T, E, I, C> {
-	fn get_primitive(&self) -> PrimitiveMode {
-		self.primitive
-	}
-
-	fn get_vertex_buffer(&self) -> &Buffer {
-		self.vertex_buffer.get_buffer()
-	}
-	
-	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
-		self.element_buffer.as_ref().map(|buffer| ElementBufferRef::new(buffer.get_buffer(), buffer.element_type))
-	}
-
-	fn get_instance_buffer(&self) -> Option<&Buffer> {
-		if let Some(buffer) = &self.instance_buffer {
-			Some(buffer.get_buffer())
-		} else {
-			None
-		}
-	}
-
-	fn get_command_buffer(&self) -> Option<&Buffer> {
-		if let Some(buffer) = &self.command_buffer {
-			Some(buffer.get_buffer())
-		} else {
-			None
-		}
-	}
-
-	fn get_vertex_stride(&self) -> usize {
-		size_of::<T>()
+		size_of::<V>()
 	}
 
 	fn get_instance_stride(&self) -> usize {
@@ -629,7 +228,7 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh 
 
 	fn get_element_count(&self) -> usize {
 		if let Some(element_buffer) = &self.element_buffer {
-			element_buffer.get_num_elements()
+			element_buffer.len()
 		} else {
 			0
 		}
@@ -652,7 +251,7 @@ impl<T: BufferVecItem, E: BufferVecItem, I: BufferVecItem, C: DrawCommand> Mesh 
 	}
 
 	fn flush(&mut self) {
-		DynamicMesh::<T, E, I, C>::flush(self);
+		Mesh::flush(self);
 	}
 }
 
@@ -686,12 +285,12 @@ impl Debug for ElementType {
 }
 
 #[derive(Debug, Clone)]
-pub struct MeshWithMaterial<M: Mesh, Mat: Material> {
+pub struct MeshWithMaterial<M: GenericMesh, Mat: Material> {
 	material: Rc<Mat>,
 	mesh: M,
 }
 
-impl<M: Mesh, Mat: Material> MeshWithMaterial<M, Mat> {
+impl<M: GenericMesh, Mat: Material> MeshWithMaterial<M, Mat> {
 	pub fn new(mesh: M, material: Rc<Mat>) -> Self {
 		Self {
 			material,
@@ -704,7 +303,7 @@ impl<M: Mesh, Mat: Material> MeshWithMaterial<M, Mat> {
 	}
 }
 
-impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
+impl<M: GenericMesh, Mat: Material> GenericMesh for MeshWithMaterial<M, Mat> {
 	fn get_primitive(&self) -> PrimitiveMode {
 		self.mesh.get_primitive()
 	}
@@ -713,8 +312,12 @@ impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
 		self.mesh.get_vertex_buffer()
 	}
 
-	fn get_element_buffer(&self) -> Option<ElementBufferRef> {
+	fn get_element_buffer(&self) -> Option<&Buffer> {
 		self.mesh.get_element_buffer()
+	}
+
+	fn get_element_type(&self) -> ElementType {
+		self.mesh.get_element_type()
 	}
 
 	fn get_instance_buffer(&self) -> Option<&Buffer> {
@@ -747,5 +350,30 @@ impl<M: Mesh, Mat: Material> Mesh for MeshWithMaterial<M, Mat> {
 
 	fn get_command_count(&self) -> usize {
 		self.mesh.get_command_count()
+	}
+}
+
+pub trait GenericMeshWithMaterial: GenericMesh {
+	fn get_material(&self) -> Option<&dyn Material>;
+}
+
+impl<BV, V, BE, E, BI, I, BC, C> GenericMeshWithMaterial for Mesh<BV, V, BE, E, BI, I, BC, C>
+where
+	BV: BufferVec<V>,
+	BE: BufferVec<E>,
+	BI: BufferVec<I>,
+	BC: BufferVec<C>,
+	V: BufferVecItem,
+	E: BufferVecItem,
+	I: BufferVecItem,
+	C: BufferVecItem {
+	fn get_material(&self) -> Option<&dyn Material> {
+		None
+	}
+}
+
+impl<M: GenericMesh, Mat: Material> GenericMeshWithMaterial for MeshWithMaterial<M, Mat> {
+	fn get_material(&self) -> Option<&dyn Material> {
+		Some(&*self.material)
 	}
 }
