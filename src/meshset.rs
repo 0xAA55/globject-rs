@@ -16,19 +16,7 @@ pub struct Pipelineset<V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
 }
 
 impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipelineset<V, I, M, Mat> {
-	pub fn from_meshset(glcore: Rc<GLCore>, meshset: Meshset<M, Mat>, shader: Rc<Shader>) -> Self {
-		let mut subsets = BTreeMap::new();
-		for (name, mesh) in meshset.subsets.iter() {
-			let mut v = Vec::new();
-			v.push(Rc::new(Pipeline::new(glcore.clone(), mesh.clone(), shader.clone())));
-			subsets.insert(name.clone(), v);
-		}
-		Self {
-			subsets
-		}
-	}
-
-	pub fn from_meshset_with_multiple_shaders(glcore: Rc<GLCore>, meshset: Meshset<M, Mat>, shaders: &[Rc<Shader>]) -> Self {
+	pub fn from_meshset(glcore: Rc<GLCore>, meshset: Meshset<M, Mat>, shaders: &[Rc<Shader>]) -> Self {
 		let mut subsets = BTreeMap::new();
 		for (name, mesh) in meshset.subsets.iter() {
 			let mut v = Vec::with_capacity(shaders.len());
