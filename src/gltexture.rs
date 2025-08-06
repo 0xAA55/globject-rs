@@ -13,6 +13,7 @@ use std::{
 };
 use image::{ImageReader, Pixel, ImageBuffer, RgbImage, DynamicImage};
 
+/// The dimension of the texture represents the type of texture
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureDimension {
 	Tex1d = GL_TEXTURE_1D as isize,
@@ -21,6 +22,7 @@ pub enum TextureDimension {
 	TexCube = GL_TEXTURE_CUBE_MAP as isize,
 }
 
+/// The binding target of the texture includes the 6 faces of a cubemap
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureTarget {
 	Tex1d = GL_TEXTURE_1D as isize,
@@ -35,6 +37,7 @@ pub enum TextureTarget {
 	TexCubeNegZ = GL_TEXTURE_CUBE_MAP_NEGATIVE_Z as isize,
 }
 
+/// The cubemap faces enum
 #[derive(Clone, Copy, PartialEq)]
 pub enum CubeMapFaces {
 	TexCubePosX = TextureTarget::TexCubePosX as isize,
@@ -45,6 +48,7 @@ pub enum CubeMapFaces {
 	TexCubeNegZ = TextureTarget::TexCubeNegZ as isize,
 }
 
+/// The constant helps to conveniently iterate through the 6 faces of a cubemap
 pub const CUBE_FACE_TARGETS: [CubeMapFaces; 6] = [
 	CubeMapFaces::TexCubePosX,
 	CubeMapFaces::TexCubeNegX,
@@ -54,6 +58,7 @@ pub const CUBE_FACE_TARGETS: [CubeMapFaces; 6] = [
 	CubeMapFaces::TexCubeNegZ,
 ];
 
+/// The **internal format** of the texture indicates how the pixels are stored in the GPU texture
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureFormat {
 	Depth = GL_DEPTH_COMPONENT as isize,
@@ -119,15 +124,21 @@ pub enum TextureFormat {
 	Rgba32ui = GL_RGBA32UI as isize,
 }
 
+/// The wrapping rules of the textures
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureWrapping {
 	ClampToEdge = GL_CLAMP_TO_EDGE as isize,
 	ClampToBorder = GL_CLAMP_TO_BORDER as isize,
 	MirrorClampToEdge = GL_MIRROR_CLAMP_TO_EDGE as isize,
+
+	/// **NOTE**: `Repeat` is only supported to the 2^N size of the textures by most of the GPU
 	Repeat = GL_REPEAT as isize,
+
+	/// **NOTE**: `MirroredRepeat` is only supported to the 2^N size of the textures by most of the GPU
 	MirroredRepeat = GL_MIRRORED_REPEAT as isize,
 }
 
+/// The sampler filters of the textures, including how mipmap sampling should be done
 #[derive(Clone, Copy, PartialEq)]
 pub enum SamplerFilter {
 	Nearest = GL_NEAREST as isize,
@@ -138,12 +149,14 @@ pub enum SamplerFilter {
 	LinearMipmapLinear = GL_LINEAR_MIPMAP_LINEAR as isize,
 }
 
+/// The sampler filters of the textures, only for magnifying sampling
 #[derive(Clone, Copy, PartialEq)]
 pub enum SamplerMagFilter {
 	Nearest = GL_NEAREST as isize,
 	Linear = GL_LINEAR as isize,
 }
 
+/// The channel type of a pixel
 #[derive(Clone, Copy, PartialEq)]
 pub enum ChannelType {
 	Red = GL_RED as isize,
@@ -163,6 +176,7 @@ pub enum ChannelType {
 	DepthStencil = GL_DEPTH_STENCIL as isize,
 }
 
+/// The component type for each channel of a pixel
 #[derive(Clone, Copy, PartialEq)]
 pub enum ComponentType {
 	U8 = GL_UNSIGNED_BYTE as isize,
@@ -187,9 +201,11 @@ pub enum ComponentType {
 	U32_2_10_10_10Rev = GL_UNSIGNED_INT_2_10_10_10_REV as isize,
 }
 
+/// The pixel type trait must be able to be a `BufferVec` item
 pub trait PixelType: BufferVecItem {}
 impl<T> PixelType for T where T: BufferVecItem {}
 
+/// The pixel buffer object (PBO) for the texture helps with asynchronous texture updating or retrieving back to the system memory
 #[derive(Debug, Clone)]
 pub struct PixelBuffer {
 	buffer: BufferVec,
@@ -203,6 +219,7 @@ pub struct PixelBuffer {
 	format_type: ComponentType,
 }
 
+/// The OpenGL texture object
 pub struct Texture {
 	pub glcore: Rc<GLCore>,
 	name: u32,
@@ -219,11 +236,13 @@ pub struct Texture {
 	pixel_buffer: Option<PixelBuffer>,
 }
 
+/// The binding state of the texture, utilizing the RAII rules to manage the binding state
 pub struct TextureBind<'a> {
 	pub texture: &'a Texture,
 	target: TextureTarget,
 }
 
+/// The error for loading an image from a file, decoding the byte stream of the image
 #[derive(Debug)]
 pub enum LoadImageError {
 	IOError(std::io::Error),
@@ -251,6 +270,7 @@ impl From<image::ImageError> for LoadImageError {
 }
 
 impl TextureFormat {
+	/// Get how many bits that composed of a pixel. The implementation is just to ask anything from OpenGL
 	pub fn bits_of_pixel(&self, glcore: &GLCore, target: TextureTarget) -> usize {
 		let target = target as u32;
 		let mut data: i32 = 0;
@@ -272,6 +292,7 @@ impl TextureFormat {
 
 	pub fn from_format_and_type(format: PixelFormat, format_type: ComponentType) -> Option<Self> {
 		match format_type {
+	/// Create a `TextureFormat` from the channel type and the component type, returns `None` if the combination couldn't have its corresponding format
 			ComponentType::U8_332 => Some(Self::R3g3b2),
 			ComponentType::U16_4444 => Some(Self::Rgba4),
 			ComponentType::U16_5551 => Some(Self::Rgb5a1),
@@ -332,6 +353,7 @@ impl TextureFormat {
 }
 
 impl ComponentType {
+	/// Get the component type from a string
 	pub fn from_typename(typename: &str) -> Self {
 		match typename {
 			"u8"  => Self::U8,
@@ -360,6 +382,7 @@ pub fn get_format_and_type_from_image_pixel<P: Pixel>(format: &mut ChannelType, 
 		other => return Err(LoadImageError::UnsupportedImageType(format!("Unknown subpixel type `{other}`"))),
 	};
 	*format = match format_type {
+/// Input a generic type of `P` as the pixel data type, retrieve the channel type, and the component type
 		ComponentType::I32 | ComponentType::U32 => {
 			match P::CHANNEL_COUNT {
 				1 => ChannelType::RedInteger,
@@ -388,6 +411,7 @@ impl PixelBuffer {
 		self.buffer.get_name()
 	}
 
+	/// Create a new pixel buffer
 	pub fn new(glcore: Rc<GLCore>,
 			width: u32,
 			height: u32,
@@ -421,7 +445,7 @@ impl PixelBuffer {
 		}
 	}
 
-	/// Create from an ImageBuffer
+	/// Create from an `ImageBuffer`
 	pub fn from_image<P: Pixel>(glcore: Rc<GLCore>, img: &ImageBuffer<P, Vec<P::Subpixel>>) -> Self {
 		let container = img.as_raw();
 		let mut format = ChannelType::Rgb;
@@ -430,7 +454,7 @@ impl PixelBuffer {
 		Self::new(glcore, img.width(), img.height(), 1, size_of_val(&container[..]), format, format_type, Some(container.as_ptr() as *const c_void))
 	}
 
-	/// Create from texture file
+	/// Create from a file
 	pub fn from_file(glcore: Rc<GLCore>, path: &Path) -> Result<Self, LoadImageError> {
 		let ext = path.extension().map_or_else(|| String::new(), |ext| OsStr::to_str(ext).unwrap().to_lowercase());
 		match &ext[..] {
@@ -505,12 +529,11 @@ impl PixelBuffer {
 		}
 	}
 
-	/// Get the buffer
+	/// Get the underlying buffer
 	pub fn get_buffer(&self) -> &Buffer {
 		self.buffer.get_buffer()
 	}
 
-	/// Get the format
 	pub fn get_format(&self) -> ChannelType {
 		self.format
 	}
@@ -520,7 +543,7 @@ impl PixelBuffer {
 		self.format_type
 	}
 
-	/// Create a `BufferBind` to use the RAII system to manage the binding state.
+	/// Create a `BufferBind` to use the RAII system to manage the binding state
 	pub fn bind<'a>(&'a self) -> BufferBind<'a> {
 		self.buffer.bind()
 	}
@@ -532,6 +555,7 @@ impl Texture {
 		self.name
 	}
 
+	/// When to create a new texture, must set up all of the parameters that are needed to be set up due to the specifications of OpenGL
 	fn set_texture_params(
 			glcore: Rc<GLCore>,
 			name: u32,
@@ -758,7 +782,7 @@ impl Texture {
 		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
 	}
 
-	/// Create a texture by an image
+	/// Create a texture from an image
 	pub fn from_image<P: Pixel>(
 			glcore: Rc<GLCore>,
 			dim: TextureDimension,
@@ -790,7 +814,7 @@ impl Texture {
 		}
 	}
 
-	/// Create a texture from file
+	/// Create a texture from a file
 	pub fn from_file(
 			glcore: Rc<GLCore>,
 			path: &Path,
@@ -827,7 +851,7 @@ impl Texture {
 	}
 
 
-	/// Bind the texture, use the RAII system to manage the binding state.
+	/// Bind the texture, using the RAII system to manage the binding state
 	pub fn bind<'a>(&'a self) -> TextureBind<'a> {
 		match self.dim {
 			TextureDimension::Tex1d => TextureBind::new(self, TextureTarget::Tex1d),
@@ -837,7 +861,7 @@ impl Texture {
 		}
 	}
 
-	/// Bind the cube map face, use the RAII system to manage the binding state.
+	/// Bind a cubemap face, using the RAII system to manage the binding state
 	pub fn bind_face<'a>(&'a self, face: CubeMapFaces) -> TextureBind<'a> {
 		match self.dim {
 			TextureDimension::TexCube => {
@@ -863,8 +887,8 @@ impl Texture {
 		})
 	}
 
-	/// Retrieve the pixels from the texture to the specified data pointer regardless if currently is using an PBO or not
 	pub unsafe fn download_texture(&self, data: *mut c_void, buffer_format: ChannelType, buffer_format_type: ComponentType) {
+	/// Retrieve the pixels from the texture to the specified data pointer regardless of is currently using a PBO or not
 		let pointer = data as *mut u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
@@ -894,8 +918,8 @@ impl Texture {
 		}
 	}
 
-	/// Load the texture with the specified data pointer regardless if currently is using an PBO or not
 	pub unsafe fn upload_texture(&self, data: *const c_void, buffer_format: ChannelType, buffer_format_type: ComponentType, regen_mipmap: bool) {
+	/// Load the texture with the specified data pointer regardless of is currently using a PBO or not
 		let pointer = data as *const u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
@@ -947,7 +971,7 @@ impl Texture {
 		bind_pbo.unbind();
 	}
 
-	/// Apply the change to the pixel buffer
+	/// Apply the change to the pixel buffer of the texture
 	pub fn unpack_pixel_buffer(&self, regen_mipmap: bool) {
 		let pixel_buffer = self.pixel_buffer.as_ref().unwrap();
 		let buffer_format = pixel_buffer.format;
@@ -957,9 +981,9 @@ impl Texture {
 		bind_pbo.unbind();
 	}
 
-	/// Create the PBO if not created early
 	pub fn create_pixel_buffer(&mut self, buffer_format: ChannelType, buffer_format_type: ComponentType, initial_data: Option<*const c_void>) {
 		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_format, buffer_format_type, initial_data))
+	/// Create the PBO if not been created earlier
 	}
 
 	/// Discard the PBO if not necessarily need it
@@ -1000,6 +1024,7 @@ impl Drop for Texture {
 }
 
 impl<'a> TextureBind<'a> {
+	/// Create a binding state to the texture, utilizing the RAII rules to manage the binding state
 	fn new(texture: &'a Texture, target: TextureTarget) -> Self {
 		texture.glcore.glBindTexture(target as u32, texture.name);
 		Self {

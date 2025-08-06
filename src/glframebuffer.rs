@@ -12,7 +12,7 @@ pub struct FramebufferTarget {
 	/// The texture binding target
 	pub texture_target: TextureTarget,
 
-	/// The layer index of the 3D texture to bind
+	/// The layer index of the 3D texture to bind (Only bind a 2D layer to the framebuffer)
 	pub layer_of_3d: i32,
 }
 
@@ -31,7 +31,7 @@ pub struct FramebufferBind<'a> {
 }
 
 impl Framebuffer {
-	/// Create new empty framebuffer object
+	/// Create a new empty framebuffer object
 	pub fn new(glcore: Rc<GLCore>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenFramebuffers(1, &mut name as *mut _);
@@ -57,7 +57,7 @@ impl<'a> FramebufferBind<'a> {
 		}
 	}
 
-	/// Setup the framebuffer, apply `draw_targets`
+	/// Set up the framebuffer, apply `draw_targets`
 	pub fn setup(&self, program: &Shader) {
 		let draw_targets = &self.framebuffer.draw_targets;
 		assert!(!draw_targets.is_empty());
@@ -96,7 +96,7 @@ impl<'a> FramebufferBind<'a> {
 		glcore.glViewport(0, 0, max_width as i32, max_height as i32);
 	}
 
-	/// Unbind the framebuffer by utilizing the RAII rules.
+	/// Explicitly unbind the framebuffer
 	pub fn unbind(self) {}
 }
 

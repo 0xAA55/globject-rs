@@ -11,6 +11,7 @@ use std::{
 	rc::Rc,
 };
 
+/// The trait that the struct of vertices or instances must implement
 pub trait VertexType: Copy + Clone + Sized + Default + Debug + Iterable {}
 impl<T> VertexType for T where T: Copy + Clone + Sized + Default + Debug + Iterable {}
 
@@ -23,6 +24,7 @@ macro_rules! derive_vertex_type {
 	};
 }
 
+/// The pipeline is used to draw a mesh with a shader to a framebuffer.
 pub struct Pipeline<V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
 	pub glcore: Rc<GLCore>,
 	name: u32,
@@ -34,6 +36,7 @@ pub struct Pipeline<V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
 	_phantom_instance_type: PhantomData<I>,
 }
 
+/// The data type described in the OpenGL way.
 #[derive(Debug, Clone, Copy)]
 struct DataGlType {
 	data_type: u32,
@@ -41,20 +44,24 @@ struct DataGlType {
 	rows: u32,
 }
 
+/// The binding state of the pipeline
 #[derive(Debug)]
 pub struct PipelineBind<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
 	pub pipeline: &'a Pipeline<V, I, M, Mat>,
 }
 
 impl DataGlType {
+	/// Does this data type use integers as the basic component type
 	fn is_integer(&self) -> bool {
 		matches!(self.data_type, GL_BYTE | GL_SHORT | GL_INT | GL_UNSIGNED_BYTE | GL_UNSIGNED_SHORT | GL_UNSIGNED_INT)
 	}
 
+	/// Does this data type use `double` as the basic component type
 	fn is_double(&self) -> bool {
 		matches!(self.data_type, GL_DOUBLE)
 	}
 
+	/// The size in bytes of this data type
 	fn size_in_bytes(&self) -> usize {
 		match self.data_type {
 			GL_BYTE | GL_UNSIGNED_BYTE => (self.size as usize) * self.rows as usize,
@@ -72,6 +79,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 		self.name
 	}
 
+	/// Create a new pipeline
 	pub fn new(glcore: Rc<GLCore>, mesh: Rc<MeshWithMaterial<M, Mat>>, shader: Rc<Shader>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenVertexArrays(1, &mut name as *mut u32);
@@ -89,6 +97,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 		ret
 	}
 
+	/// Establish the pipeline by describing the vertex/instance data and the shader attrib inputs to the VAO.
 	fn establish_pipeline(&mut self) {
 		let program = self.shader.use_program();
 		let active_attribs = self.shader.get_active_attribs().unwrap();
@@ -108,6 +117,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 		program.unuse();
 	}
 
+	/// Describe a `VertexType` to a VAO
 	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, ShaderInputVarType>, v_a_d: u32) {
 		let instance = T::default();
 		let stride = size_of::<T>();
@@ -153,10 +163,12 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 		}
 	}
 
+	/// Bind the pipeline for drawing
 	pub fn bind<'a>(&'a self) -> PipelineBind<'a, V, I, M, Mat> {
 		PipelineBind::new(self)
 	}
 
+	/// Parse the type name of the `VertexType` struct members, and return a `DataGlType`.
 	fn get_vertex_struct_member_gltype(member_type: &str) -> DataGlType {
 		match member_type {
 			"i8" => DataGlType{data_type: GL_BYTE, size: 1, rows: 1},
@@ -228,6 +240,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 		}
 	}
 
+	/// Get the exact type of the struct member by the member instance
 	pub fn get_typename_of_vertex_struct_member(data: &dyn Any) -> &str {
 		     if data.is::<u8>() {"u8"}
 		else if data.is::<u16>() {"u16"}
@@ -313,6 +326,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 }
 
 impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, V, I, M, Mat> {
+	/// Create a binding state of the pipeline
 	fn new(pipeline: &'a Pipeline<V, I, M, Mat>) -> Self {
 		pipeline.glcore.glBindVertexArray(pipeline.name);
 		Self {
@@ -320,7 +334,7 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 		}
 	}
 
-	/// Run the pipeline
+	/// Run the pipeline for drawing
 	pub fn draw(&self, fbo: Option<&Framebuffer>) {
 		let glcore = &self.pipeline.glcore;
 		let program = self.pipeline.shader.use_program();
@@ -375,7 +389,7 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 		if let Some(b) = fbo_bind { b.unbind() }
 	}
 
-	/// Unbind the VAO by utilizing the RAII rules.
+	/// Explicitly unbind the VAO pipeline
 	pub fn unbind(self) {}
 }
 
@@ -402,5 +416,6 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Debug for Pipeline<V,
 }
 
 derive_vertex_type! {
+	/// The unused type for you if you don't want to use the instanced mesh
 	pub struct UnusedType {}
 }
