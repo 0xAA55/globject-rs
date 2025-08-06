@@ -367,15 +367,18 @@ impl<'a> ShaderUse<'a> {
 						continue;
 					}
 					match texture {
-						TextureOrColor::Texture(texture) => {
+						MaterialComponent::Texture(texture) => {
 							texture.set_active_unit(active_texture);
 							let bind = texture.bind();
 							glcore.glUniform1i(location, active_texture as i32);
 							bind.unbind();
 							active_texture += 1;
 						}
-						TextureOrColor::Color(color) => {
+						MaterialComponent::Color(color) => {
 							glcore.glUniform4f(location, color.x, color.y, color.z, color.w);
+						}
+						MaterialComponent::Luminance(lum) => {
+							glcore.glUniform1f(location, *lum);
 						}
 					}
 				}
