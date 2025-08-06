@@ -1,17 +1,17 @@
 
 #![allow(dead_code)]
 
-mod glbuffer;
-mod glshader;
-mod glcmdbuf;
-mod gltexture;
-mod glframebuffer;
-mod buffervec;
-mod mesh;
-mod material;
-mod pipeline;
-mod meshset;
-mod common;
+pub mod glbuffer;
+pub mod glshader;
+pub mod glcmdbuf;
+pub mod gltexture;
+pub mod glframebuffer;
+pub mod buffervec;
+pub mod mesh;
+pub mod material;
+pub mod pipeline;
+pub mod meshset;
+pub mod common;
 
 extern crate nalgebra_glm as glm;
 
