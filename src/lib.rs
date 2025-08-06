@@ -36,6 +36,7 @@ pub mod common;
 
 extern crate nalgebra_glm as glm;
 
+/// The prelude module provides all of the things you need to use
 pub mod prelude {
 	pub use crate::glbuffer::*;
 	pub use crate::glshader::*;
