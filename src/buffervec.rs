@@ -3,52 +3,310 @@ use crate::prelude::*;
 use bitvec::vec::BitVec;
 use std::{
 	fmt::Debug,
+	marker::PhantomData,
 	mem::{size_of, size_of_val},
-	ops::{Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
+	ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
 	rc::Rc,
 };
 
-#[derive(Debug, Clone)]
-pub struct BufferVec {
-	pub glcore: Rc<GLCore>,
-	buffer: Buffer,
-}
-
+/// The type that could be the item of the `BufferVec`
 pub trait BufferVecItem: Copy + Sized + Default + Debug {}
 impl<T> BufferVecItem for T where T: Copy + Sized + Default + Debug {}
 
+/// The `BufferVec` trait
+pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
+	/// Get the underlying `Buffer`
+	fn get_buffer(&self) -> &Buffer;
+
+	/// Get the size of the buffer
+	fn len(&self) -> usize;
+
+	/// Get the capacity of the buffer
+	fn capacity(&self) -> usize;
+
+	/// Resizes to the new size, reallocate the buffer if the new size is larger
+	fn resize(&mut self, new_len: usize, value: T);
+
+	/// Shrink to the exact number of items
+	fn shrink_to_fit(&mut self);
+
+	/// Retrieve a single item from the buffer in the GPU
+	fn get(&self, index: usize) -> T;
+
+	/// Update a single item from the buffer in the GPU
+	fn set(&mut self, index: usize, data: &T);
+
+	/// Retrieve a slice of items from the buffer in the GPU
+	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Vec<T>;
+
+	/// Update a slice of itrems to the buffer in the GPU
+	fn set_slice_of_data(&mut self, start_index: usize, data: &[T]);
+
+	/// Retrieve a single item from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
+	fn get_mut(&mut self, index: usize) -> BufferVecItemRefMut<Self, T> {
+		BufferVecItemRefMut::new(self, index)
+	}
+
+	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
+	fn get_mut_slice(&mut self, range: Range<usize>) -> BufferVecSliceRefMut<Self, T> {
+		BufferVecSliceRefMut::new_range(self, range)
+	}
+
+	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
+	fn get_mut_slice_range_from(&mut self, range: RangeFrom<usize>) -> BufferVecSliceRefMut<Self, T> {
+		BufferVecSliceRefMut::new_range_from(self, range)
+	}
+
+	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
+	fn get_mut_slice_range_to(&mut self, range: RangeTo<usize>) -> BufferVecSliceRefMut<Self, T> {
+		BufferVecSliceRefMut::new_range_to(self, range)
+	}
+
+	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
+	fn get_mut_slice_range_full(&mut self, range: RangeFull) -> BufferVecSliceRefMut<Self, T> {
+		BufferVecSliceRefMut::new_range_full(self, range)
+	}
+
+	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
+	fn get_mut_slice_range_inclusive(&mut self, range: RangeInclusive<usize>) -> BufferVecSliceRefMut<Self, T> {
+		BufferVecSliceRefMut::new_range_inclusive(self, range)
+	}
+
+	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
+	fn get_mut_slice_range_to_inclusive(&mut self, range: RangeToInclusive<usize>) -> BufferVecSliceRefMut<Self, T> {
+		BufferVecSliceRefMut::new_range_to_inclusive(self, range)
+	}
+
+	/// Flush the buffer to the GPU if it has a cache in the system memory
+	fn flush(&mut self) {}
+
+	/// Check if the content of the buffer is empty
+	fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+
+	/// Set the binding target of the buffer
+	fn set_target(&mut self, target: BufferTarget);
+
+	/// Create a `BufferBind` to use the RAII system to manage the binding state.
+	fn bind<'a>(&'a self) -> BufferBind<'a> {
+		self.get_buffer().bind()
+	}
+
+	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
+	fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
+		self.get_buffer().bind_to(target)
+	}
+}
+
+/// The `&mut item` for the `BufferVec` trait
+#[derive(Debug)]
+pub struct BufferVecItemRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	item: T,
+	index: usize,
+	buffer: &'a mut B
+}
+
+/// The `&mut slice[]` for the `BufferVec` trait
+#[derive(Debug)]
+pub struct BufferVecSliceRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	slice: Vec<T>,
+	start_index: usize,
+	buffer: &'a mut B
+}
+
+impl<'a, B, T> BufferVecItemRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	fn new(buffer: &'a mut B, index: usize) -> Self {
+		let item = buffer.get(index);
+		Self {
+			item,
+			index,
+			buffer,
+		}
+	}
+}
+
+impl<'a, B, T> Deref for BufferVecItemRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	type Target = T;
+	fn deref(&self) -> &T {
+		&self.item
+	}
+}
+
+impl<'a, B, T> DerefMut for BufferVecItemRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	fn deref_mut(&mut self) -> &mut T {
+		&mut self.item
+	}
+}
+
+impl<'a, B, T> Drop for BufferVecItemRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	fn drop(&mut self) {
+		self.buffer.set(self.index, &self.item)
+	}
+}
+
+impl<'a, B, T> BufferVecSliceRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	fn new_range(buffer: &'a mut B, range: Range<usize>) -> Self {
+		let slice = buffer.get_slice_of_data(range.start, range.end - range.start);
+		Self {
+			slice,
+			start_index: range.start,
+			buffer,
+		}
+	}
+
+	fn new_range_from(buffer: &'a mut B, range: RangeFrom<usize>) -> Self {
+		let slice = buffer.get_slice_of_data(range.start, buffer.len() - range.start);
+		Self {
+			slice,
+			start_index: range.start,
+			buffer,
+		}
+	}
+
+	fn new_range_to(buffer: &'a mut B, range: RangeTo<usize>) -> Self {
+		let slice = buffer.get_slice_of_data(0, range.end);
+		Self {
+			slice,
+			start_index: 0,
+			buffer,
+		}
+	}
+
+	fn new_range_full(buffer: &'a mut B, _: RangeFull) -> Self {
+		let slice = buffer.get_slice_of_data(0, buffer.len());
+		Self {
+			slice,
+			start_index: 0,
+			buffer,
+		}
+	}
+
+	fn new_range_inclusive(buffer: &'a mut B, range: RangeInclusive<usize>) -> Self {
+		let slice = buffer.get_slice_of_data(*range.start(), *range.end() + 1 - *range.start());
+		Self {
+			slice,
+			start_index: *range.start(),
+			buffer,
+		}
+	}
+
+	fn new_range_to_inclusive(buffer: &'a mut B, range: RangeToInclusive<usize>) -> Self {
+		let slice = buffer.get_slice_of_data(0, range.end + 1);
+		Self {
+			slice,
+			start_index: 0,
+			buffer,
+		}
+	}
+}
+
+impl<'a, B, T> Deref for BufferVecSliceRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	type Target = [T];
+	fn deref(&self) -> &[T] {
+		&self.slice
+	}
+}
+
+impl<'a, B, T> DerefMut for BufferVecSliceRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	fn deref_mut(&mut self) -> &mut [T] {
+		&mut self.slice
+	}
+}
+
+impl<'a, B, T> Drop for BufferVecSliceRefMut<'a, B, T>
+where
+	B: BufferVec<T>,
+	T: BufferVecItem {
+	fn drop(&mut self) {
+		self.buffer.set_slice_of_data(self.start_index, &self.slice[..])
+	}
+}
+
+/// The `BufferVecStatic` struct, although it doesn't supports
+#[derive(Debug, Clone)]
+pub struct BufferVecStatic<T: BufferVecItem> {
+	pub glcore: Rc<GLCore>,
+	buffer: Buffer,
+	num_items: usize,
+	capacity: usize,
+	_item_type: PhantomData<T>,
+}
+
 /// A vectorized buffer that allows you to modify its content via providing your struct.
-impl BufferVec {
+impl<T: BufferVecItem> BufferVecStatic<T> {
 	/// Get the internal name
 	pub fn get_name(&self) -> u32 {
 		self.buffer.get_name()
 	}
 
-	/// Convert `Buffer` to an `BufferVec`
+	/// Convert `Buffer` to an `BufferVecStatic`
 	pub fn new(glcore: Rc<GLCore>, buffer: Buffer) -> Self {
+		let capacity = buffer.size() / size_of::<T>();
 		Self {
 			glcore,
 			buffer,
+			num_items: 0,
+			capacity,
+			_item_type: PhantomData,
 		}
 	}
+}
 
-	/// Get the size of the buffer
-	pub fn size_in_bytes(&self) -> usize {
-		self.buffer.size()
-	}
-
-	/// Resize (reallocate) the buffer
-	pub fn resize<T: BufferVecItem>(&mut self, new_len: usize, value: T) {
-		self.buffer.resize(new_len * size_of::<T>(), value)
-	}
-
-	/// Get the buffer
-	pub fn get_buffer(&self) -> &Buffer {
+impl<T: BufferVecItem> BufferVec<T> for BufferVecStatic<T> {
+	fn get_buffer(&self) -> &Buffer {
 		&self.buffer
 	}
 
-	/// Retrieve data from GPU
-	pub fn get_data<T: BufferVecItem>(&self, index: usize) -> T {
+	fn capacity(&self) -> usize {
+		self.capacity
+	}
+
+	fn len(&self) -> usize {
+		self.num_items
+	}
+
+	fn resize(&mut self, new_len: usize, value: T) {
+		let new_size = new_len * size_of::<T>();
+		if new_size > self.capacity {
+			self.buffer.resize(new_len * size_of::<T>(), value);
+		}
+		self.num_items = new_len;
+	}
+
+	fn shrink_to_fit(&mut self) {
+		self.capacity = self.num_items;
+		self.buffer.resize(self.capacity * size_of::<T>(), T::default());
+	}
+
+	fn get(&self, index: usize) -> T {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
 		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly);
@@ -58,8 +316,7 @@ impl BufferVec {
 		ret
 	}
 
-	/// Update data to GPU
-	pub fn set_data<T: BufferVecItem>(&mut self, index: usize, data: &T) {
+	fn set(&mut self, index: usize, data: &T) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
 		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly);
@@ -70,20 +327,21 @@ impl BufferVec {
 		map.unmap();
 	}
 
-	/// Retrieve multiple data from GPU
-	pub fn get_multi_data<T: BufferVecItem>(&self, index: usize, data: &mut [T]) {
-		let offset = index * size_of::<T>();
+	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Vec<T> {
+		let offset = start_index * size_of::<T>();
+		let end_index = start_index + len;
 		let bind = self.buffer.bind();
-		let (map, addr) = bind.map_ranged(offset, size_of_val(data), MapAccess::WriteOnly);
+		let (map, addr) = bind.map_ranged(offset, len * size_of::<T>(), MapAccess::WriteOnly);
 		let addr = addr as *mut T;
-		for (i, item) in data.iter_mut().enumerate() {
-			unsafe { *item = *addr.wrapping_add(i); };
+		let mut ret: Vec<T> = Vec::with_capacity(len);
+		for i in start_index..end_index {
+			ret.push(unsafe {*addr.wrapping_add(i)});
 		}
 		map.unmap();
+		ret
 	}
 
-	/// Update multiple data to GPU
-	pub fn set_multi_data<T: BufferVecItem>(&mut self, index: usize, data: &[T]) {
+	fn set_slice_of_data(&mut self, index: usize, data: &[T]) {
 		let offset = index * size_of::<T>();
 		let bind = self.buffer.bind();
 		let (map, addr) = bind.map_ranged(offset, size_of_val(data), MapAccess::WriteOnly);
@@ -94,33 +352,26 @@ impl BufferVec {
 		map.unmap();
 	}
 
-	/// Set the default binding target
-	pub fn set_target(&mut self, target: BufferTarget) {
+	fn set_target(&mut self, target: BufferTarget) {
 		self.buffer.set_target(target)
-	}
-
-	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'a>(&'a self) -> BufferBind<'a>{
-		self.buffer.bind()
-	}
-
-	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
-		self.buffer.bind_to(target)
 	}
 }
 
-impl From<BufferVec> for Buffer {
-	fn from(val: BufferVec) -> Self {
+impl<T: BufferVecItem> From<BufferVecStatic<T>> for Buffer {
+	fn from(val: BufferVecStatic<T>) -> Self {
 		val.buffer
 	}
 }
 
-impl From<Buffer> for BufferVec {
+impl<T: BufferVecItem> From<Buffer> for BufferVecStatic<T> {
 	fn from(val: Buffer) -> Self {
-		BufferVec {
+		let capacity = val.size() / size_of::<T>();
+		BufferVecStatic {
 			glcore: val.glcore.clone(),
 			buffer: val,
+			num_items: 0,
+			capacity,
+			_item_type: PhantomData,
 		}
 	}
 }
@@ -129,7 +380,7 @@ impl From<Buffer> for BufferVec {
 #[derive(Debug, Clone)]
 pub struct BufferVecDynamic<T: BufferVecItem> {
 	pub glcore: Rc<GLCore>,
-	buffer: BufferVec,
+	buffer: BufferVecStatic<T>,
 	num_items: usize,
 	capacity: usize,
 	cache: Vec<T>,
@@ -143,14 +394,13 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 		self.buffer.get_name()
 	}
 
-	/// Convert an `BufferVec` to the `BufferVecDynamic`
-	pub fn new(buffer: BufferVec, num_items: usize) -> Self {
-		let capacity = buffer.size_in_bytes() / size_of::<T>();
+	/// Convert an `BufferVecStatic` to the `BufferVecDynamic`
+	pub fn new(buffer: BufferVecStatic<T>) -> Self {
+		let capacity = buffer.capacity();
 		let mut cache_modified_bitmap = BitVec::new();
-		let mut cache = Vec::new();
+		let cache = buffer.get_slice_of_data(0, capacity);
 		cache_modified_bitmap.resize(capacity, false);
-		cache.resize(capacity, T::default());
-		buffer.get_multi_data(0, &mut cache);
+		let num_items = buffer.len();
 		Self {
 			glcore: buffer.glcore.clone(),
 			buffer,
@@ -161,29 +411,22 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 			capacity
 		}
 	}
+}
 
-	/// Get num items of the buffer
-	pub fn len(&self) -> usize {
-		self.num_items
-	}
-
-	/// Check if the buffer is empty
-	pub fn is_empty(&self) -> bool {
-		self.num_items == 0
-	}
-
-	/// Get the capacity of the current buffer
-	pub fn capacity(&self) -> usize {
-		self.capacity
-	}
-
-	/// Get the buffer
-	pub fn get_buffer(&self) -> &Buffer {
+impl<T: BufferVecItem> BufferVec<T> for BufferVecDynamic<T> {
+	fn get_buffer(&self) -> &Buffer {
 		self.buffer.get_buffer()
 	}
 
-	/// Resizes to the new size, reallocate the buffer if the new size is larger.
-	pub fn resize(&mut self, new_len: usize, value: T) {
+	fn len(&self) -> usize {
+		self.num_items
+	}
+
+	fn capacity(&self) -> usize {
+		self.capacity
+	}
+
+	fn resize(&mut self, new_len: usize, value: T) {
 		self.cache.resize(new_len, value);
 		self.num_items = new_len;
 		if new_len > self.capacity {
@@ -197,8 +440,7 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 		}
 	}
 
-	/// Reallocate the buffer to fit
-	pub fn shrink_to_fit(&mut self) {
+	fn shrink_to_fit(&mut self) {
 		if self.capacity > self.num_items {
 			self.cache.shrink_to_fit();
 			self.cache_modified_bitmap.clear(); // set all false
@@ -209,8 +451,35 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 		}
 	}
 
-	/// Commit all changes to the buffer to OpenGL Buffer Object
-	pub fn flush(&mut self) {
+	fn get(&self, index: usize) -> T {
+		self.cache[index]
+	}
+
+	fn set(&mut self, index: usize, data: &T) {
+		self.cache[index] = *data;
+		self.cache_modified = true;
+		self.cache_modified_bitmap.set(index, true);
+	}
+
+	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Vec<T> {
+		let end_index = start_index + len;
+		self.cache[start_index..end_index].to_vec()
+	}
+
+	fn set_slice_of_data(&mut self, start_index: usize, data: &[T]) {
+		let end_index = start_index + data.len();
+		self.cache_modified = true;
+		for i in start_index..end_index {
+			self.cache[i] = data[i - start_index];
+			self.cache_modified_bitmap.set(i, true);
+		}
+	}
+
+	fn set_target(&mut self, target: BufferTarget) {
+		self.buffer.set_target(target)
+	}
+
+	fn flush(&mut self) {
 		if !self.cache_modified {
 			return;
 		}
@@ -234,42 +503,26 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
    					if gap_length < MAXIMUM_GAP {
 						gap_length += 1;
 					} else {
-						self.buffer.set_multi_data(0, &self.cache[start_index..=end_index]);
+						self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index]);
 						is_in = false;
 					}
 				}
 		}
 		if is_in {
-			self.buffer.set_multi_data(0, &self.cache[start_index..=end_index]);
+			self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index]);
 		}
 
 		self.cache_modified = false;
 	}
+}
 
-	/// Set the default binding target
-	pub fn set_target(&mut self, target: BufferTarget) {
-		self.buffer.set_target(target)
-	}
-
-	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'a>(&'a self) -> BufferBind<'a>{
-		self.buffer.bind()
-	}
-
-	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
-		self.buffer.bind_to(target)
+impl<T: BufferVecItem> From<BufferVecStatic<T>> for BufferVecDynamic<T> {
+	fn from(val: BufferVecStatic<T>) -> Self {
+		BufferVecDynamic::new(val)
 	}
 }
 
-impl<T: BufferVecItem> From<BufferVec> for BufferVecDynamic<T> {
-	fn from(val: BufferVec) -> Self {
-		let num_items = val.buffer.size() / size_of::<T>();
-		BufferVecDynamic::new(val, num_items)
-	}
-}
-
-impl<T: BufferVecItem> From<BufferVecDynamic<T>> for BufferVec {
+impl<T: BufferVecItem> From<BufferVecDynamic<T>> for BufferVecStatic<T> {
 	fn from(mut val: BufferVecDynamic<T>) -> Self {
 		val.flush();
 		val.buffer
@@ -284,7 +537,7 @@ impl<T: BufferVecItem> From<BufferVecDynamic<T>> for Buffer {
 
 impl<T: BufferVecItem> From<Buffer> for BufferVecDynamic<T> {
 	fn from(val: Buffer) -> Self {
-		let ab: BufferVec = val.into();
+		let ab: BufferVecStatic<T> = val.into();
 		ab.into()
 	}
 }
