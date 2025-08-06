@@ -74,19 +74,46 @@ impl Default for MaterialComponent {
 }
 
 pub trait Material: Debug {
+	/// Get the ambient color
 	fn get_ambient(&self) -> Option<&MaterialComponent>;
+
+	/// Get the diffuse color
 	fn get_diffuse(&self) -> Option<&MaterialComponent>;
+
+	/// Get the specular color
 	fn get_specular(&self) -> Option<&MaterialComponent>;
+
+	/// Get the specular power
 	fn get_specular_power(&self) -> Option<&MaterialComponent>;
+
+	/// Get the base color (PBR)
 	fn get_albedo(&self) -> Option<&MaterialComponent>;
+
+	/// Get the ambient occlusion (PBR)
 	fn get_ao(&self) -> Option<&MaterialComponent>;
+
+	/// Get the displacement map (A.k.a. height map) (PBR)
 	fn get_displacement(&self) -> Option<&MaterialComponent>;
+
+	/// Get the roughness map (PBR)
 	fn get_roughness(&self) -> Option<&MaterialComponent>;
+
+	/// Get the metalness map (PBR)
 	fn get_metalness(&self) -> Option<&MaterialComponent>;
+
+	/// Get the normal map
 	fn get_normal(&self) -> Option<&MaterialComponent>;
+
+	/// Get the emissive color
 	fn get_emissive(&self) -> Option<&MaterialComponent>;
+
+	/// Get all of the component names exists in this material
 	fn get_names(&self) -> BTreeSet<String>;
+
+	/// Get a component by the name of the component
 	fn get_by_name(&self, name: &str) -> Option<&MaterialComponent>;
+
+	/// Set a componnet by the name of the component
 	fn set_by_name(&mut self, name: &str, texture: MaterialComponent);
 }
 
