@@ -20,4 +20,4 @@ struct_iterable = "0.1.1"
 turbojpeg = { version = "1.3.3", features = ["image"] }
 
 [dev-dependencies]
-glfw = { version = "0.60.0", features = ["static-link"] }
+glfw = { version = "0.60.0" }
