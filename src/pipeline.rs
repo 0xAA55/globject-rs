@@ -6,7 +6,7 @@ use std::{
 	ffi::c_void,
 	fmt::{self, Debug, Formatter},
 	marker::PhantomData,
-	mem::size_of,
+	mem::{size_of, align_of},
 	ptr::null,
 	rc::Rc,
 };
@@ -121,6 +121,7 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, ShaderInputVarType>, v_a_d: u32) {
 		let instance = T::default();
 		let stride = size_of::<T>();
+		let alignment = align_of::<T>();
 		let mut cur_offset: usize = 0;
 		for (field_name, field_value) in instance.iter() {
 			let typename = Self::get_typename_of_vertex_struct_member(field_value);
@@ -155,6 +156,7 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 				eprintln!("Attrib `{typename} {field_name}` is not active.");
 			}
 			cur_offset += datainfo.size_in_bytes();
+			cur_offset = ((cur_offset - 1) / alignment + 1) * alignment;
 		}
 	}
 
