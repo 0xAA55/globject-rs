@@ -1,16 +1,37 @@
 
 #![allow(dead_code)]
 
+/// The most basic OpenGL Buffer Object wrapping
 pub mod glbuffer;
+
+/// The most basic OpenGL Shader Program Object wrapping
 pub mod glshader;
+
+/// Definitions of `DrawArrayCommand`, `DrawElementsCommand` and `DispatchIndirectCommand`
 pub mod glcmdbuf;
+
+/// The most basic OpenGL Texture Object wrapping
 pub mod gltexture;
+
+/// The most basic OpenGL Framebuffer Object wrapping
 pub mod glframebuffer;
+
+/// An upper layer wrapping for `Buffer`, the `BufferVec` allows editing the buffer items easier than just to use the `Buffer`
 pub mod buffervec;
+
+/// An upper layer wrapping for `Mesh`, utilizing the trait `BufferVec` as the `Mesh` generic type of the vertex buffer, element buffer, instance buffer, and command buffer
 pub mod mesh;
+
+/// The material module provides `MaterialLegacy`, `MaterialPbr`, and the trait `Material`
 pub mod material;
+
+/// The most basic OpenGL Vertex Array Object that manages the pipeline from the data source in the array buffer to the shader attrib inputs
 pub mod pipeline;
+
+/// The mesh set for the complex mesh, each mesh subset has its name and material.
 pub mod meshset;
+
+/// The common module is to provide some miscellous utilities
 pub mod common;
 
 extern crate nalgebra_glm as glm;
