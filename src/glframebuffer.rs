@@ -7,22 +7,31 @@ use std::{
 	rc::Rc,
 };
 
+/// The framebuffer render target type
 pub struct FramebufferTarget {
+	/// The texture binding target
 	pub texture_target: TextureTarget,
+
+	/// The layer index of the 3D texture to bind
 	pub layer_of_3d: i32,
 }
 
+/// The framebuffer object type
 pub struct Framebuffer {
 	pub glcore: Rc<GLCore>,
 	name: u32,
+
+	/// The name of the draw targets and the binding target and the texture
 	pub draw_targets: BTreeMap<String, (FramebufferTarget, Rc<Texture>)>,
 }
 
+/// The binding guard of the framebuffer
 pub struct FramebufferBind<'a> {
 	framebuffer: &'a Framebuffer,
 }
 
 impl Framebuffer {
+	/// Create new empty framebuffer object
 	pub fn new(glcore: Rc<GLCore>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenFramebuffers(1, &mut name as *mut _);
@@ -40,6 +49,7 @@ impl Framebuffer {
 }
 
 impl<'a> FramebufferBind<'a> {
+	/// Create a new binding state to the framebuffer object, utilizing the RAII rules to manage the binding state.
 	fn new(framebuffer: &'a Framebuffer) -> Self {
 		framebuffer.glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer.name);
 		Self {

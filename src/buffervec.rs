@@ -17,6 +17,7 @@ pub struct BufferVec {
 pub trait BufferVecItem: Copy + Sized + Default + Debug {}
 impl<T> BufferVecItem for T where T: Copy + Sized + Default + Debug {}
 
+/// A vectorized buffer that allows you to modify its content via providing your struct.
 impl BufferVec {
 	/// Get the internal name
 	pub fn get_name(&self) -> u32 {
@@ -124,6 +125,7 @@ impl From<Buffer> for BufferVec {
 	}
 }
 
+/// A high-level vectorized buffer that allows you to modify its content via index accessing/slicing
 #[derive(Debug, Clone)]
 pub struct BufferVecDynamic<T: BufferVecItem> {
 	pub glcore: Rc<GLCore>,
