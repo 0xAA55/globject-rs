@@ -348,10 +348,7 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 
 		let mesh = &self.pipeline.mesh;
 		let element_buffer = mesh.get_element_buffer();
-		let e_bind = element_buffer.as_ref().map(|b| {
-			assert_eq!(b.buffer.get_target(), BufferTarget::ElementArrayBuffer);
-			b.bind()
-		});
+		let e_bind = mesh.bind_element_buffer();
 
 		if let Some(command_buffer) = mesh.get_command_buffer() {
 			assert_eq!(command_buffer.get_target(), BufferTarget::DrawIndirectBuffer);
