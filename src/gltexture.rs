@@ -145,7 +145,7 @@ pub enum SamplerMagFilter {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum PixelFormat {
+pub enum ChannelType {
 	Red = GL_RED as isize,
 	Rg = GL_RG as isize,
 	Rgb = GL_RGB as isize,
@@ -199,7 +199,7 @@ pub struct PixelBuffer {
 	depth: u32,
 	pitch: usize,
 	pitch_wh: usize,
-	format: PixelFormat,
+	format: ChannelType,
 	format_type: ComponentType,
 }
 
@@ -278,52 +278,52 @@ impl TextureFormat {
 			ComponentType::U32_8888 => Some(Self::Rgba8),
 			ComponentType::U32_10_10_10_2 => Some(Self::Rgb10a2),
 			ComponentType::I8 => match format {
-				PixelFormat::Red =>  Some(Self::R8i),
-				PixelFormat::Rg =>   Some(Self::Rg8i),
-				PixelFormat::Rgb =>  Some(Self::Rgb8i),
-				PixelFormat::Rgba => Some(Self::Rgba8i),
+				ChannelType::Red =>  Some(Self::R8i),
+				ChannelType::Rg =>   Some(Self::Rg8i),
+				ChannelType::Rgb =>  Some(Self::Rgb8i),
+				ChannelType::Rgba => Some(Self::Rgba8i),
 				_ => None,
 			}
 			ComponentType::U8 => match format {
-				PixelFormat::Red =>  Some(Self::R8ui),
-				PixelFormat::Rg =>   Some(Self::Rg8ui),
-				PixelFormat::Rgb =>  Some(Self::Rgb8ui),
-				PixelFormat::Rgba => Some(Self::Rgba8ui),
+				ChannelType::Red =>  Some(Self::R8ui),
+				ChannelType::Rg =>   Some(Self::Rg8ui),
+				ChannelType::Rgb =>  Some(Self::Rgb8ui),
+				ChannelType::Rgba => Some(Self::Rgba8ui),
 				_ => None,
 			}
 			ComponentType::I16 => match format {
-				PixelFormat::Red =>  Some(Self::R16i),
-				PixelFormat::Rg =>   Some(Self::Rg16i),
-				PixelFormat::Rgb =>  Some(Self::Rgb16i),
-				PixelFormat::Rgba => Some(Self::Rgba16i),
+				ChannelType::Red =>  Some(Self::R16i),
+				ChannelType::Rg =>   Some(Self::Rg16i),
+				ChannelType::Rgb =>  Some(Self::Rgb16i),
+				ChannelType::Rgba => Some(Self::Rgba16i),
 				_ => None,
 			}
 			ComponentType::U16 => match format {
-				PixelFormat::Red =>  Some(Self::R16ui),
-				PixelFormat::Rg =>   Some(Self::Rg16ui),
-				PixelFormat::Rgb =>  Some(Self::Rgb16ui),
-				PixelFormat::Rgba => Some(Self::Rgba16ui),
+				ChannelType::Red =>  Some(Self::R16ui),
+				ChannelType::Rg =>   Some(Self::Rg16ui),
+				ChannelType::Rgb =>  Some(Self::Rgb16ui),
+				ChannelType::Rgba => Some(Self::Rgba16ui),
 				_ => None,
 			}
 			ComponentType::I32 => match format {
-				PixelFormat::Red =>  Some(Self::R32i),
-				PixelFormat::Rg =>   Some(Self::Rg32i),
-				PixelFormat::Rgb =>  Some(Self::Rgb32i),
-				PixelFormat::Rgba => Some(Self::Rgba32i),
+				ChannelType::Red =>  Some(Self::R32i),
+				ChannelType::Rg =>   Some(Self::Rg32i),
+				ChannelType::Rgb =>  Some(Self::Rgb32i),
+				ChannelType::Rgba => Some(Self::Rgba32i),
 				_ => None,
 			}
 			ComponentType::U32 => match format {
-				PixelFormat::Red =>  Some(Self::R32ui),
-				PixelFormat::Rg =>   Some(Self::Rg32ui),
-				PixelFormat::Rgb =>  Some(Self::Rgb32ui),
-				PixelFormat::Rgba => Some(Self::Rgba32ui),
+				ChannelType::Red =>  Some(Self::R32ui),
+				ChannelType::Rg =>   Some(Self::Rg32ui),
+				ChannelType::Rgb =>  Some(Self::Rgb32ui),
+				ChannelType::Rgba => Some(Self::Rgba32ui),
 				_ => None,
 			}
 			ComponentType::F32 => match format {
-				PixelFormat::Red =>  Some(Self::R32f),
-				PixelFormat::Rg =>   Some(Self::Rg32f),
-				PixelFormat::Rgb =>  Some(Self::Rgb32f),
-				PixelFormat::Rgba => Some(Self::Rgba32f),
+				ChannelType::Red =>  Some(Self::R32f),
+				ChannelType::Rg =>   Some(Self::Rg32f),
+				ChannelType::Rgb =>  Some(Self::Rgb32f),
+				ChannelType::Rgba => Some(Self::Rgba32f),
 				_ => None,
 			}
 			_ => None
@@ -347,7 +347,7 @@ impl ComponentType {
 	}
 }
 
-pub fn get_format_and_type_from_image_pixel<P: Pixel>(format: &mut PixelFormat, format_type: &mut ComponentType) -> Result<(), LoadImageError> {
+pub fn get_format_and_type_from_image_pixel<P: Pixel>(format: &mut ChannelType, format_type: &mut ComponentType) -> Result<(), LoadImageError> {
 	*format_type = match type_name::<P::Subpixel>() {
 		"u8" =>  ComponentType::U8,
 		"u16" => ComponentType::U16,
@@ -362,19 +362,19 @@ pub fn get_format_and_type_from_image_pixel<P: Pixel>(format: &mut PixelFormat, 
 	*format = match format_type {
 		ComponentType::I32 | ComponentType::U32 => {
 			match P::CHANNEL_COUNT {
-				1 => PixelFormat::RedInteger,
-				2 => PixelFormat::RgInteger,
-				3 => PixelFormat::RgbInteger,
-				4 => PixelFormat::RgbaInteger,
+				1 => ChannelType::RedInteger,
+				2 => ChannelType::RgInteger,
+				3 => ChannelType::RgbInteger,
+				4 => ChannelType::RgbaInteger,
 				o => return Err(LoadImageError::UnsupportedImageType(format!("Unknown channel count ({o}) of the `ImageBuffer`"))),
 			}
 		}
 		_ => {
 			match P::CHANNEL_COUNT {
-				1 => PixelFormat::Red,
-				2 => PixelFormat::Rg,
-				3 => PixelFormat::Rgb,
-				4 => PixelFormat::Rgba,
+				1 => ChannelType::Red,
+				2 => ChannelType::Rg,
+				3 => ChannelType::Rgb,
+				4 => ChannelType::Rgba,
 				o => return Err(LoadImageError::UnsupportedImageType(format!("Unknown channel count ({o}) of the `ImageBuffer`"))),
 			}
 		}
@@ -393,7 +393,7 @@ impl PixelBuffer {
 			height: u32,
 			depth: u32,
 			size_in_bytes: usize,
-			format: PixelFormat,
+			format: ChannelType,
 			format_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
@@ -424,7 +424,7 @@ impl PixelBuffer {
 	/// Create from an ImageBuffer
 	pub fn from_image<P: Pixel>(glcore: Rc<GLCore>, img: &ImageBuffer<P, Vec<P::Subpixel>>) -> Self {
 		let container = img.as_raw();
-		let mut format = PixelFormat::Rgb;
+		let mut format = ChannelType::Rgb;
 		let mut format_type = ComponentType::U8;
 		get_format_and_type_from_image_pixel::<P>(&mut format, &mut format_type).unwrap();
 		Self::new(glcore, img.width(), img.height(), 1, size_of_val(&container[..]), format, format_type, Some(container.as_ptr() as *const c_void))
@@ -463,7 +463,7 @@ impl PixelBuffer {
 	}
 
 	/// Get the size for each pixel
-	pub fn size_of_pixel(format: PixelFormat, format_type: ComponentType) -> usize {
+	pub fn size_of_pixel(format: ChannelType, format_type: ComponentType) -> usize {
 		let component_len = match format_type {
 			ComponentType::U8_332 |
 			ComponentType::U8_233Rev => return 1,
@@ -487,21 +487,21 @@ impl PixelBuffer {
 			ComponentType::F32 => 4,
 		};
 		match format {
-			PixelFormat::Red |
-			PixelFormat::RedInteger |
-			PixelFormat::StencilIndex |
-			PixelFormat::Depth => component_len,
-			PixelFormat::Rg |
-			PixelFormat::RgInteger |
-			PixelFormat::DepthStencil => component_len * 2,
-			PixelFormat::Rgb |
-			PixelFormat::RgbInteger |
-			PixelFormat::Bgr |
-			PixelFormat::BgrInteger => component_len * 3,
-			PixelFormat::Rgba |
-			PixelFormat::RgbaInteger |
-			PixelFormat::Bgra |
-			PixelFormat::BgraInteger => component_len * 4,
+			ChannelType::Red |
+			ChannelType::RedInteger |
+			ChannelType::StencilIndex |
+			ChannelType::Depth => component_len,
+			ChannelType::Rg |
+			ChannelType::RgInteger |
+			ChannelType::DepthStencil => component_len * 2,
+			ChannelType::Rgb |
+			ChannelType::RgbInteger |
+			ChannelType::Bgr |
+			ChannelType::BgrInteger => component_len * 3,
+			ChannelType::Rgba |
+			ChannelType::RgbaInteger |
+			ChannelType::Bgra |
+			ChannelType::BgraInteger => component_len * 4,
 		}
 	}
 
@@ -511,7 +511,7 @@ impl PixelBuffer {
 	}
 
 	/// Get the format
-	pub fn get_format(&self) -> PixelFormat {
+	pub fn get_format(&self) -> ChannelType {
 		self.format
 	}
 
@@ -667,7 +667,7 @@ impl Texture {
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: PixelFormat,
+			buffer_format: ChannelType,
 			buffer_format_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
@@ -695,7 +695,7 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: PixelFormat,
+			buffer_format: ChannelType,
 			buffer_format_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
@@ -714,7 +714,7 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: PixelFormat,
+			buffer_format: ChannelType,
 			buffer_format_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
@@ -735,7 +735,7 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: PixelFormat,
+			buffer_format: ChannelType,
 			buffer_format_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
@@ -751,7 +751,7 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: PixelFormat,
+			buffer_format: ChannelType,
 			buffer_format_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
@@ -769,7 +769,7 @@ impl Texture {
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 		) -> Self {
-		let mut buffer_format = PixelFormat::Rgb;
+		let mut buffer_format = ChannelType::Rgb;
 		let mut buffer_format_type = ComponentType::U8;
 		get_format_and_type_from_image_pixel::<P>(&mut buffer_format, &mut buffer_format_type).unwrap();
 		let format = TextureFormat::from_format_and_type(buffer_format, buffer_format_type).unwrap();
@@ -864,7 +864,7 @@ impl Texture {
 	}
 
 	/// Retrieve the pixels from the texture to the specified data pointer regardless if currently is using an PBO or not
-	pub unsafe fn download_texture(&self, data: *mut c_void, buffer_format: PixelFormat, buffer_format_type: ComponentType) {
+	pub unsafe fn download_texture(&self, data: *mut c_void, buffer_format: ChannelType, buffer_format_type: ComponentType) {
 		let pointer = data as *mut u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
@@ -895,7 +895,7 @@ impl Texture {
 	}
 
 	/// Load the texture with the specified data pointer regardless if currently is using an PBO or not
-	pub unsafe fn upload_texture(&self, data: *const c_void, buffer_format: PixelFormat, buffer_format_type: ComponentType, regen_mipmap: bool) {
+	pub unsafe fn upload_texture(&self, data: *const c_void, buffer_format: ChannelType, buffer_format_type: ComponentType, regen_mipmap: bool) {
 		let pointer = data as *const u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
@@ -958,7 +958,7 @@ impl Texture {
 	}
 
 	/// Create the PBO if not created early
-	pub fn create_pixel_buffer(&mut self, buffer_format: PixelFormat, buffer_format_type: ComponentType, initial_data: Option<*const c_void>) {
+	pub fn create_pixel_buffer(&mut self, buffer_format: ChannelType, buffer_format_type: ComponentType, initial_data: Option<*const c_void>) {
 		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_format, buffer_format_type, initial_data))
 	}
 
@@ -1130,7 +1130,7 @@ impl Debug for CubeMapFaces {
 	}
 }
 
-impl Debug for PixelFormat {
+impl Debug for ChannelType {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
 			Self::Red => write!(f, "RED"),
