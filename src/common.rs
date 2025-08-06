@@ -1,4 +1,5 @@
 
+/// Convert a snake_case string to the camel case string
 pub fn to_camel_case(snake_case: &str, first_letter_uppercase: bool) -> String {
 	let mut ret = String::new();
 	let mut last_is_underscore = first_letter_uppercase;
