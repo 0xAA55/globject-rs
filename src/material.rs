@@ -5,76 +5,111 @@ use std::{
 	fmt::Debug,
 	rc::Rc,
 };
-use glm::*;
 
+/// The material component
 #[derive(Debug, Clone)]
-pub enum TextureOrColor {
+pub enum MaterialComponent {
 	Texture(Rc<Texture>),
 	Color(Vec4),
+	Luminance(f32),
 }
 
+/// The legacy illumination model material
 #[derive(Default, Debug, Clone)]
 pub struct MaterialLegacy {
-	pub ambient: TextureOrColor,
-	pub diffuse: TextureOrColor,
-	pub specular: TextureOrColor,
-	pub normal: TextureOrColor,
-	pub emissive: TextureOrColor,
-	pub others: HashMap<String, TextureOrColor>,
+	/// Base brightness
+	pub ambient: MaterialComponent,
+
+	/// Base color
+	pub diffuse: MaterialComponent,
+
+	/// Specular color
+	pub specular: MaterialComponent,
+
+	/// Specular power
+	pub specular_power: MaterialComponent,
+
+	/// Normal map
+	pub normal: MaterialComponent,
+
+	/// Emissive, self-lighting
+	pub emissive: MaterialComponent,
+
+	/// The other type of components
+	pub others: HashMap<String, MaterialComponent>,
 }
 
+/// The physically based rendering illumination model material
 #[derive(Default, Debug, Clone)]
 pub struct MaterialPbr {
-	pub albedo: TextureOrColor,
-	pub normal: TextureOrColor,
-	pub ao: TextureOrColor,
-	pub displacement: TextureOrColor,
-	pub roughness: TextureOrColor,
-	pub metalness: TextureOrColor,
-	pub emissive: TextureOrColor,
-	pub others: HashMap<String, TextureOrColor>,
+	/// Base color
+	pub albedo: MaterialComponent,
+
+	/// Normal map
+	pub normal: MaterialComponent,
+
+	/// Ambient occlusion
+	pub ao: MaterialComponent,
+
+	/// A.k.a. Height map. The renderer must render this map by extruding the mesh, or use ray-marching to cast the protrusions of the map
+	pub displacement: MaterialComponent,
+
+	/// Roughness, something sort of the legacy specular-key map
+	pub roughness: MaterialComponent,
+
+	/// Metalness, something sort of the legacy specular map
+	pub metalness: MaterialComponent,
+
+	/// Emissive, self-lighting
+	pub emissive: MaterialComponent,
+
+	/// The other type of components
+	pub others: HashMap<String, MaterialComponent>,
 }
 
-impl Default for TextureOrColor {
+impl Default for MaterialComponent {
 	fn default() -> Self {
 		Self::Color(Vec4::new(0.5, 0.5, 0.5, 1.0))
 	}
 }
 
 pub trait Material: Debug {
-	fn get_ambient(&self) -> Option<&TextureOrColor>;
-	fn get_diffuse(&self) -> Option<&TextureOrColor>;
-	fn get_specular(&self) -> Option<&TextureOrColor>;
-	fn get_albedo(&self) -> Option<&TextureOrColor>;
-	fn get_ao(&self) -> Option<&TextureOrColor>;
-	fn get_displacement(&self) -> Option<&TextureOrColor>;
-	fn get_roughness(&self) -> Option<&TextureOrColor>;
-	fn get_metalness(&self) -> Option<&TextureOrColor>;
-	fn get_normal(&self) -> Option<&TextureOrColor>;
-	fn get_emissive(&self) -> Option<&TextureOrColor>;
+	fn get_ambient(&self) -> Option<&MaterialComponent>;
+	fn get_diffuse(&self) -> Option<&MaterialComponent>;
+	fn get_specular(&self) -> Option<&MaterialComponent>;
+	fn get_specular_power(&self) -> Option<&MaterialComponent>;
+	fn get_albedo(&self) -> Option<&MaterialComponent>;
+	fn get_ao(&self) -> Option<&MaterialComponent>;
+	fn get_displacement(&self) -> Option<&MaterialComponent>;
+	fn get_roughness(&self) -> Option<&MaterialComponent>;
+	fn get_metalness(&self) -> Option<&MaterialComponent>;
+	fn get_normal(&self) -> Option<&MaterialComponent>;
+	fn get_emissive(&self) -> Option<&MaterialComponent>;
 	fn get_names(&self) -> BTreeSet<String>;
-	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor>;
-	fn set_by_name(&mut self, name: &str, texture: TextureOrColor);
+	fn get_by_name(&self, name: &str) -> Option<&MaterialComponent>;
+	fn set_by_name(&mut self, name: &str, texture: MaterialComponent);
 }
 
 impl Material for MaterialLegacy {
-	fn get_ambient(&self) ->		Option<&TextureOrColor> {Some(&self.ambient)}
-	fn get_diffuse(&self) ->		Option<&TextureOrColor> {Some(&self.diffuse)}
-	fn get_specular(&self) ->		Option<&TextureOrColor> {Some(&self.specular)}
-	fn get_normal(&self) ->			Option<&TextureOrColor> {Some(&self.normal)}
-	fn get_emissive(&self) ->		Option<&TextureOrColor> {Some(&self.emissive)}
+	fn get_ambient(&self) ->		Option<&MaterialComponent> {Some(&self.ambient)}
+	fn get_diffuse(&self) ->		Option<&MaterialComponent> {Some(&self.diffuse)}
+	fn get_specular(&self) ->		Option<&MaterialComponent> {Some(&self.specular)}
+	fn get_specular_power(&self) ->	Option<&MaterialComponent> {Some(&self.specular_power)}
+	fn get_normal(&self) ->			Option<&MaterialComponent> {Some(&self.normal)}
+	fn get_emissive(&self) ->		Option<&MaterialComponent> {Some(&self.emissive)}
 
-	fn get_albedo(&self) ->			Option<&TextureOrColor> {None}
-	fn get_ao(&self) ->				Option<&TextureOrColor> {None}
-	fn get_displacement(&self) ->	Option<&TextureOrColor> {None}
-	fn get_roughness(&self) ->		Option<&TextureOrColor> {None}
-	fn get_metalness(&self) ->		Option<&TextureOrColor> {None}
+	fn get_albedo(&self) ->			Option<&MaterialComponent> {None}
+	fn get_ao(&self) ->				Option<&MaterialComponent> {None}
+	fn get_displacement(&self) ->	Option<&MaterialComponent> {None}
+	fn get_roughness(&self) ->		Option<&MaterialComponent> {None}
+	fn get_metalness(&self) ->		Option<&MaterialComponent> {None}
 
 	fn get_names(&self) -> BTreeSet<String> {
 		let mut ret = BTreeSet::new();
 		ret.insert("ambient".to_owned());
 		ret.insert("diffuse".to_owned());
 		ret.insert("specular".to_owned());
+		ret.insert("specular_power".to_owned());
 		ret.insert("normal".to_owned());
 		ret.insert("emissive".to_owned());
 		for (name, _) in self.others.iter() {
@@ -83,29 +118,31 @@ impl Material for MaterialLegacy {
 		ret
 	}
 
-	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
+	fn get_by_name(&self, name: &str) -> Option<&MaterialComponent> {
 		match self.others.get(&name.to_owned()) {
 			Some(data) => Some(data),
 			None => {
 				match name {
-					"ambient" =>	self.get_ambient(),
-					"diffuse" =>	self.get_diffuse(),
-					"specular" =>	self.get_specular(),
-					"normal" =>		self.get_normal(),
-					"emissive" =>	self.get_emissive(),
+					"ambient" =>		self.get_ambient(),
+					"diffuse" =>		self.get_diffuse(),
+					"specular" =>		self.get_specular(),
+					"specular_power" =>	self.get_specular_power(),
+					"normal" =>			self.get_normal(),
+					"emissive" =>		self.get_emissive(),
 					_ => None,
 				}
 			}
 		}
 	}
 
-	fn set_by_name(&mut self, name: &str, texture: TextureOrColor) {
+	fn set_by_name(&mut self, name: &str, texture: MaterialComponent) {
 		match name {
-			"ambient" =>	self.ambient = texture,
-			"diffuse" =>	self.diffuse = texture,
-			"specular" =>	self.specular = texture,
-			"normal" =>		self.normal = texture,
-			"emissive" =>	self.emissive = texture,
+			"ambient" =>		self.ambient = texture,
+			"diffuse" =>		self.diffuse = texture,
+			"specular" =>		self.specular = texture,
+			"specular_power" =>	self.specular_power = texture,
+			"normal" =>			self.normal = texture,
+			"emissive" =>		self.emissive = texture,
 			others =>{
 				self.others.insert(others.to_owned(), texture);
 			}
@@ -114,17 +151,18 @@ impl Material for MaterialLegacy {
 }
 
 impl Material for MaterialPbr {
-	fn get_albedo(&self) ->			Option<&TextureOrColor> {Some(&self.albedo)}
-	fn get_ao(&self) ->				Option<&TextureOrColor> {Some(&self.ao)}
-	fn get_displacement(&self) ->	Option<&TextureOrColor> {Some(&self.displacement)}
-	fn get_roughness(&self) ->		Option<&TextureOrColor> {Some(&self.roughness)}
-	fn get_metalness(&self) ->		Option<&TextureOrColor> {Some(&self.metalness)}
-	fn get_normal(&self) ->			Option<&TextureOrColor> {Some(&self.normal)}
-	fn get_emissive(&self) ->		Option<&TextureOrColor> {Some(&self.emissive)}
+	fn get_albedo(&self) ->			Option<&MaterialComponent> {Some(&self.albedo)}
+	fn get_ao(&self) ->				Option<&MaterialComponent> {Some(&self.ao)}
+	fn get_displacement(&self) ->	Option<&MaterialComponent> {Some(&self.displacement)}
+	fn get_roughness(&self) ->		Option<&MaterialComponent> {Some(&self.roughness)}
+	fn get_metalness(&self) ->		Option<&MaterialComponent> {Some(&self.metalness)}
+	fn get_normal(&self) ->			Option<&MaterialComponent> {Some(&self.normal)}
+	fn get_emissive(&self) ->		Option<&MaterialComponent> {Some(&self.emissive)}
 
-	fn get_ambient(&self) ->		Option<&TextureOrColor> {None}
-	fn get_diffuse(&self) ->		Option<&TextureOrColor> {None}
-	fn get_specular(&self) ->		Option<&TextureOrColor> {None}
+	fn get_ambient(&self) ->		Option<&MaterialComponent> {None}
+	fn get_diffuse(&self) ->		Option<&MaterialComponent> {None}
+	fn get_specular(&self) ->		Option<&MaterialComponent> {None}
+	fn get_specular_power(&self) ->	Option<&MaterialComponent> {None}
 
 	fn get_names(&self) -> BTreeSet<String> {
 		let mut ret = BTreeSet::new();
@@ -141,7 +179,7 @@ impl Material for MaterialPbr {
 		ret
 	}
 
-	fn get_by_name(&self, name: &str) -> Option<&TextureOrColor> {
+	fn get_by_name(&self, name: &str) -> Option<&MaterialComponent> {
 		match self.others.get(&name.to_owned()) {
 			Some(data) => Some(data),
 			None => {
@@ -159,7 +197,7 @@ impl Material for MaterialPbr {
 		}
 	}
 
-	fn set_by_name(&mut self, name: &str, texture: TextureOrColor) {
+	fn set_by_name(&mut self, name: &str, texture: MaterialComponent) {
 		match name {
 			"albedo" =>			self.albedo = texture,
 			"ao" =>				self.ao = texture,
