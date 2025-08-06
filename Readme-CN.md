@@ -17,7 +17,7 @@
 * `Mesh`: 网格对象，具有顶点缓冲区、元素缓冲区（顶点索引）、实例缓冲区、渲染命令缓冲区。
 
 ### 扩展封装：
-* `BufferVec`/`BufferVecDynamic`: 将缓冲区对象封装成类似于 `Vec` 一样的泛型结构体，允许更方便地修改缓冲区中的内容。
+* `BufferVecStatic`/`BufferVecDynamic`/trait `BufferVec`: 将缓冲区对象封装成类似于 `Vec` 一样的泛型结构体，允许更方便地修改缓冲区中的内容。
 * `Material`: 材质库，按照常规方式（`MaterialLegacy`）和基于物理光学渲染的 PBR 方式（`MaterialPbr`）区分，每一个成员既可以是纹理（`Texture`）也可以是颜色值（`Vec4`）
 * `Meshset`/`Pipelineset`: 网格集，每个网格都有对应的名字和材质，以及着色器。
 

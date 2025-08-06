@@ -17,7 +17,7 @@ This is a wrapper library for OpenGL objects, encapsulating OpenGL objects as Ru
 * `Mesh`: Mesh object, which has a vertex buffer, an element buffer (vertex index), an instance buffer, and a rendering command buffer.
 
 ### Extended Encapsulation:
-* `BufferVec`/`BufferVecDynamic`: Encapsulates buffer objects into a generic structure similar to `Vec`, allowing for easier modification of buffer contents.
+* `BufferVecStatic`/`BufferVecDynamic`/trait `BufferVec`: Encapsulates buffer objects into a generic structure similar to `Vec`, allowing for easier modification of buffer contents.
 * `Material`: A material library, distinguishing between conventional (`MaterialLegacy`) and physically based optics rendering (PBR) (`MaterialPbr`). Each member can be either a texture (`Texture`) or a color value (`Vec4`).
 * `Meshset`/`Pipelineset`: A mesh set, each mesh has a corresponding name, material, and shader.
 
