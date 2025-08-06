@@ -42,6 +42,7 @@ mod tests {
 		ffi::c_void,
 		mem::size_of_val,
 		process::ExitCode,
+		ptr::null,
 		rc::Rc,
 	};
 	use super::prelude::*;
@@ -144,7 +145,7 @@ void main()
 			window.set_key_polling(true);
 			window.make_current();
 			glfw.set_swap_interval(SwapInterval::Adaptive);
-			let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
+			let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name).map_or_else(||null(), |f|f as *const _)));
 			let renderer = Some(Renderer::new(glcore.clone()));
 			Ok(Self {
 				renderer,
