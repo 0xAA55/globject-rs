@@ -55,6 +55,7 @@ where
 	_command_type: PhantomData<C>,
 }
 
+/// The most typical static mesh type: use `BufferVecStatic` for vertices and elements(indices), use `BufferVecDynamic` for instances and draw commands
 pub type StaticMesh<V, E, I, C> = Mesh<BufferVecStatic<V>, V, BufferVecStatic<E>, E, BufferVecDynamic<I>, I, BufferVecDynamic<C>, C>;
 
 impl<BV, V, BE, E, BI, I, BC, C> Mesh<BV, V, BE, E, BI, I, BC, C>
@@ -102,6 +103,7 @@ impl ElementType {
 	}
 }
 
+/// The `GenericMesh` trait helps the `Mesh` struct to be able to turn into an object
 pub trait GenericMesh: Debug {
 	/// Get the primitive mode of the mesh
 	fn get_primitive(&self) -> PrimitiveMode;
@@ -353,6 +355,7 @@ impl<M: GenericMesh, Mat: Material> GenericMesh for MeshWithMaterial<M, Mat> {
 	}
 }
 
+/// The `GenericMeshWithMaterial` trait helps the `MeshWithMaterial` struct to be able to turn into an object
 pub trait GenericMeshWithMaterial: GenericMesh {
 	fn get_material(&self) -> Option<&dyn Material>;
 }

@@ -73,6 +73,7 @@ impl Default for MaterialComponent {
 	}
 }
 
+/// The `Material` trait helps the `MaterialLegacy` struct or the `MaterialPbr` struct to be able to turn into an object
 pub trait Material: Debug {
 	/// Get the ambient color
 	fn get_ambient(&self) -> Option<&MaterialComponent>;

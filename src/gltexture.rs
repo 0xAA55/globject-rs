@@ -439,6 +439,7 @@ pub fn get_channel_type_and_component_type_from_image_pixel<P: Pixel>(channel_ty
 	Ok(())
 }
 
+/// The `GenericPixelBuffer` trait helps the `PixelBuffer` struct to be able to turn into an object
 pub trait GenericPixelBuffer: Debug {
 	/// Get the underlying buffer
 	fn get_buffer(&self) -> &Buffer;
@@ -553,6 +554,7 @@ where
 	}
 }
 
+/// The `GenericTexture` trait helps the `Texture` struct to be able to turn into an object
 pub trait GenericTexture: Debug {
 	/// Get the OpenGL core
 	fn get_glcore(&self) -> &GLCore;

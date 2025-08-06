@@ -323,6 +323,7 @@ impl Shader {
 }
 
 impl<'a> ShaderUse<'a> {
+	/// Create a new `using` state to the `Shader`
 	fn new(shader: &'a Shader) -> Self {
 		shader.glcore.glUseProgram(shader.get_name());
 		Self {
