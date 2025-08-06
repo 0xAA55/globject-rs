@@ -42,7 +42,6 @@ mod tests {
 		ffi::c_void,
 		mem::size_of_val,
 		process::ExitCode,
-		ptr::null,
 		rc::Rc,
 	};
 	use super::prelude::*;
@@ -63,9 +62,9 @@ mod tests {
 
 	#[derive(Debug)]
 	struct Renderer {
-		pipeline: Rc<Pipeline<MyVertex, UnusedType, StaticMesh, MaterialLegacy>>,
+		pipeline: Rc<Pipeline<MyVertex, UnusedType>>,
 		shader: Rc<Shader>,
-		mesh: Rc<MeshWithMaterial<StaticMesh, MaterialLegacy>>,
+		mesh: Rc<dyn GenericMeshWithMaterial>,
 	}
 
 	#[derive(Debug)]
@@ -90,10 +89,14 @@ mod tests {
 				1u8, 3u8, 2u8,
 			];
 			let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void);
+			let mut vertex_buffer = BufferVecStatic::<MyVertex>::new(glcore.clone(), vertex_buffer);
+			vertex_buffer.resize(4, MyVertex::default());
 			let element_buffer = Buffer::new(glcore.clone(), BufferTarget::ElementArrayBuffer, size_of_val(&elements), BufferUsage::StaticDraw, elements.as_ptr() as *const c_void);
-			let element_buffer = ElementBuffer{buffer: element_buffer, element_type: ElementType::U8};
-			let mesh = StaticMesh::new(PrimitiveMode::Triangles, vertex_buffer, vertices.len(), Some(element_buffer), None, 0, None);
+			let mut element_buffer = BufferVecStatic::<u8>::new(glcore.clone(), element_buffer);
+			element_buffer.resize(6, 0u8);
+			let mesh = StaticMesh::<MyVertex, u8, UnusedType, UnusedType>::new(PrimitiveMode::Triangles, vertex_buffer, Some(element_buffer), None, None);
 			let mesh = Rc::new(MeshWithMaterial::new(mesh, Rc::new(MaterialLegacy::default())));
+			let mesh: Rc<dyn GenericMeshWithMaterial> = mesh;
 			let shader = Rc::new(Shader::new(glcore.clone(),
 				Some("
 #version 330\n
@@ -145,7 +148,7 @@ void main()
 			window.set_key_polling(true);
 			window.make_current();
 			glfw.set_swap_interval(SwapInterval::Adaptive);
-			let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name).map_or_else(||null(), |f|f as *const _)));
+			let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
 			let renderer = Some(Renderer::new(glcore.clone()));
 			Ok(Self {
 				renderer,

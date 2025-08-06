@@ -25,10 +25,10 @@ macro_rules! derive_vertex_type {
 }
 
 /// The pipeline is used to draw a mesh with a shader to a framebuffer.
-pub struct Pipeline<V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
+pub struct Pipeline<V: VertexType, I: VertexType> {
 	pub glcore: Rc<GLCore>,
 	name: u32,
-	pub mesh: Rc<MeshWithMaterial<M, Mat>>,
+	pub mesh: Rc<dyn GenericMeshWithMaterial>,
 	pub shader: Rc<Shader>,
 	vertex_stride: usize,
 	instance_stride: usize,
@@ -46,8 +46,8 @@ struct DataGlType {
 
 /// The binding state of the pipeline
 #[derive(Debug)]
-pub struct PipelineBind<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> {
-	pub pipeline: &'a Pipeline<V, I, M, Mat>,
+pub struct PipelineBind<'a, V: VertexType, I: VertexType> {
+	pub pipeline: &'a Pipeline<V, I>,
 }
 
 impl DataGlType {
@@ -73,14 +73,14 @@ impl DataGlType {
 	}
 }
 
-impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat> {
+impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 	/// Get the internal name
 	pub fn get_name(&self) -> u32 {
 		self.name
 	}
 
 	/// Create a new pipeline
-	pub fn new(glcore: Rc<GLCore>, mesh: Rc<MeshWithMaterial<M, Mat>>, shader: Rc<Shader>) -> Self {
+	pub fn new(glcore: Rc<GLCore>, mesh: Rc<dyn GenericMeshWithMaterial>, shader: Rc<Shader>) -> Self {
 		let mut name: u32 = 0;
 		glcore.glGenVertexArrays(1, &mut name as *mut u32);
 		let mut ret = Self {
@@ -159,7 +159,7 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 	}
 
 	/// Bind the pipeline for drawing
-	pub fn bind<'a>(&'a self) -> PipelineBind<'a, V, I, M, Mat> {
+	pub fn bind<'a>(&'a self) -> PipelineBind<'a, V, I> {
 		PipelineBind::new(self)
 	}
 
@@ -320,9 +320,9 @@ impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Pipeline<V, I, M, Mat
 	}
 }
 
-impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, V, I, M, Mat> {
+impl<'a, V: VertexType, I: VertexType> PipelineBind<'a, V, I> {
 	/// Create a binding state of the pipeline
-	fn new(pipeline: &'a Pipeline<V, I, M, Mat>) -> Self {
+	fn new(pipeline: &'a Pipeline<V, I>) -> Self {
 		pipeline.glcore.glBindVertexArray(pipeline.name);
 		Self {
 			pipeline,
@@ -344,7 +344,12 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 			Some(bind)
 		});
 
-		program.setup_material_uniforms(self.pipeline.mesh.get_material(), Some("i"), true);
+		if let Some(material) = self.pipeline.mesh.get_material() {
+			program.setup_material_uniforms(material, Some("i"), true);
+		} else {
+			let default_material = MaterialLegacy::default();
+			program.setup_material_uniforms(&default_material, Some("i"), true);
+		}
 
 		let mesh = &self.pipeline.mesh;
 		let element_buffer = mesh.get_element_buffer();
@@ -354,8 +359,8 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 			assert_eq!(command_buffer.get_target(), BufferTarget::DrawIndirectBuffer);
 			let c_bind = command_buffer.bind();
 			let num_commands = mesh.get_command_count();
-			if let Some(element_buffer) = element_buffer {
-				glcore.glMultiDrawElementsIndirect(mesh.get_primitive() as u32, element_buffer.get_type() as u32, null(), num_commands as i32, size_of::<DrawElementsCommand>() as i32);
+			if let Some(_) = element_buffer {
+				glcore.glMultiDrawElementsIndirect(mesh.get_primitive() as u32, mesh.get_element_type() as u32, null(), num_commands as i32, size_of::<DrawElementsCommand>() as i32);
 			} else {
 				glcore.glMultiDrawArraysIndirect(mesh.get_primitive() as u32, null(), num_commands as i32, size_of::<DrawArrayCommand>() as i32);
 			}
@@ -364,13 +369,13 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 			let num_vertices = mesh.get_vertex_count();
 			if let Some(_) = mesh.get_instance_buffer() {
 				let num_instances = mesh.get_instance_count();
-				if let Some(element_buffer) = element_buffer {
-					glcore.glDrawElementsInstanced(mesh.get_primitive() as u32, element_buffer.get_num_elements() as i32, element_buffer.get_type() as u32, null(), num_instances as i32);
+				if let Some(_) = element_buffer {
+					glcore.glDrawElementsInstanced(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null(), num_instances as i32);
 				} else {
 					glcore.glDrawArraysInstanced(mesh.get_primitive() as u32, 0, num_vertices as i32, num_instances as i32);
 				}
-			} else if let Some(element_buffer) = element_buffer {
-				glcore.glDrawElements(mesh.get_primitive() as u32, element_buffer.get_num_elements() as i32, element_buffer.get_type() as u32, null());
+			} else if let Some(_) = element_buffer {
+				glcore.glDrawElements(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null());
 			} else {
 				glcore.glDrawArrays(mesh.get_primitive() as u32, 0, num_vertices as i32);
 			}
@@ -385,24 +390,26 @@ impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> PipelineBind<'a, 
 	pub fn unbind(self) {}
 }
 
-impl<'a, V: VertexType, I: VertexType, M: Mesh, Mat: Material> Drop for PipelineBind<'a, V, I, M, Mat> {
+impl<'a, V: VertexType, I: VertexType> Drop for PipelineBind<'a, V, I> {
 	fn drop(&mut self) {
 		self.pipeline.glcore.glBindVertexArray(0);
 	}
 }
 
-impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Drop for Pipeline<V, I, M, Mat> {
+impl<V: VertexType, I: VertexType> Drop for Pipeline<V, I> {
 	fn drop(&mut self) {
 		self.glcore.glDeleteVertexArrays(1, &self.name as *const u32);
 	}
 }
 
-impl<V: VertexType, I: VertexType, M: Mesh, Mat: Material> Debug for Pipeline<V, I, M, Mat> {
+impl<V: VertexType, I: VertexType> Debug for Pipeline<V, I> {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Pipeline")
 		.field("name", &self.name)
 		.field("mesh", &self.mesh)
 		.field("shader", &self.shader)
+		.field("vertex_stride", &self.vertex_stride)
+		.field("instance_stride", &self.instance_stride)
 		.finish()
 	}
 }
