@@ -74,18 +74,10 @@ impl<'a> FramebufferBind<'a> {
 				max_width = max(max_width, texture.get_width());
 				max_height = max(max_height, texture.get_height());
 				match texture.get_dim() {
-					TextureDimension::Tex1d => {
-						glcore.glFramebufferTexture1D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0);
-					}
-					TextureDimension::Tex2d => {
-						glcore.glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0);
-					}
-					TextureDimension::Tex3d => {
-						glcore.glFramebufferTexture3D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0, target.layer_of_3d);
-					}
-					TextureDimension::TexCube => {
-						glcore.glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0);
-					}
+					TextureDimension::Tex1d =>		glcore.glFramebufferTexture1D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0),
+					TextureDimension::Tex2d =>		glcore.glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0),
+					TextureDimension::Tex3d =>		glcore.glFramebufferTexture3D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0, target.layer_of_3d),
+					TextureDimension::TexCube =>	glcore.glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, attachment, target.texture_target as u32, texture.get_name(), 0),
 				}
 				draw_buffers.push(attachment);
 			} else {

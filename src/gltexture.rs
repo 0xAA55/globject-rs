@@ -275,18 +275,12 @@ impl TextureFormat {
 		let target = target as u32;
 		let mut data: i32 = 0;
 		let mut size: usize = 0;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_DEPTH_SIZE, &mut data as *mut _);
-		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_STENCIL_SIZE, &mut data as *mut _);
-		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_RED_SIZE, &mut data as *mut _);
-		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_GREEN_SIZE, &mut data as *mut _);
-		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BLUE_SIZE, &mut data as *mut _);
-		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_ALPHA_SIZE, &mut data as *mut _);
-		size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_DEPTH_SIZE, &mut data as *mut _);		size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_STENCIL_SIZE, &mut data as *mut _);	size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_RED_SIZE, &mut data as *mut _);		size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_GREEN_SIZE, &mut data as *mut _);		size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BLUE_SIZE, &mut data as *mut _);		size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_ALPHA_SIZE, &mut data as *mut _);		size += data as usize;
 		size
 	}
 
