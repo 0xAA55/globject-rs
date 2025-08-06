@@ -215,8 +215,8 @@ pub struct PixelBuffer {
 	depth: u32,
 	pitch: usize,
 	pitch_wh: usize,
-	format: ChannelType,
-	format_type: ComponentType,
+	channel_type: ChannelType,
+	component_type: ComponentType,
 }
 
 /// The OpenGL texture object
@@ -284,57 +284,57 @@ impl TextureFormat {
 		size
 	}
 
-	pub fn from_format_and_type(format: PixelFormat, format_type: ComponentType) -> Option<Self> {
-		match format_type {
 	/// Create a `TextureFormat` from the channel type and the component type, returns `None` if the combination couldn't have its corresponding format
+	pub fn from_channel_type_and_component_type(channel_type: ChannelType, component_type: ComponentType) -> Option<Self> {
+		match component_type {
 			ComponentType::U8_332 => Some(Self::R3g3b2),
 			ComponentType::U16_4444 => Some(Self::Rgba4),
 			ComponentType::U16_5551 => Some(Self::Rgb5a1),
 			ComponentType::U32_8888 => Some(Self::Rgba8),
 			ComponentType::U32_10_10_10_2 => Some(Self::Rgb10a2),
-			ComponentType::I8 => match format {
+			ComponentType::I8 => match channel_type {
 				ChannelType::Red =>  Some(Self::R8i),
 				ChannelType::Rg =>   Some(Self::Rg8i),
 				ChannelType::Rgb =>  Some(Self::Rgb8i),
 				ChannelType::Rgba => Some(Self::Rgba8i),
 				_ => None,
 			}
-			ComponentType::U8 => match format {
+			ComponentType::U8 => match channel_type {
 				ChannelType::Red =>  Some(Self::R8ui),
 				ChannelType::Rg =>   Some(Self::Rg8ui),
 				ChannelType::Rgb =>  Some(Self::Rgb8ui),
 				ChannelType::Rgba => Some(Self::Rgba8ui),
 				_ => None,
 			}
-			ComponentType::I16 => match format {
+			ComponentType::I16 => match channel_type {
 				ChannelType::Red =>  Some(Self::R16i),
 				ChannelType::Rg =>   Some(Self::Rg16i),
 				ChannelType::Rgb =>  Some(Self::Rgb16i),
 				ChannelType::Rgba => Some(Self::Rgba16i),
 				_ => None,
 			}
-			ComponentType::U16 => match format {
+			ComponentType::U16 => match channel_type {
 				ChannelType::Red =>  Some(Self::R16ui),
 				ChannelType::Rg =>   Some(Self::Rg16ui),
 				ChannelType::Rgb =>  Some(Self::Rgb16ui),
 				ChannelType::Rgba => Some(Self::Rgba16ui),
 				_ => None,
 			}
-			ComponentType::I32 => match format {
+			ComponentType::I32 => match channel_type {
 				ChannelType::Red =>  Some(Self::R32i),
 				ChannelType::Rg =>   Some(Self::Rg32i),
 				ChannelType::Rgb =>  Some(Self::Rgb32i),
 				ChannelType::Rgba => Some(Self::Rgba32i),
 				_ => None,
 			}
-			ComponentType::U32 => match format {
+			ComponentType::U32 => match channel_type {
 				ChannelType::Red =>  Some(Self::R32ui),
 				ChannelType::Rg =>   Some(Self::Rg32ui),
 				ChannelType::Rgb =>  Some(Self::Rgb32ui),
 				ChannelType::Rgba => Some(Self::Rgba32ui),
 				_ => None,
 			}
-			ComponentType::F32 => match format {
+			ComponentType::F32 => match channel_type {
 				ChannelType::Red =>  Some(Self::R32f),
 				ChannelType::Rg =>   Some(Self::Rg32f),
 				ChannelType::Rgb =>  Some(Self::Rgb32f),
@@ -349,34 +349,22 @@ impl TextureFormat {
 impl ComponentType {
 	/// Get the component type from a string
 	pub fn from_typename(typename: &str) -> Self {
-		match typename {
-			"u8"  => Self::U8,
-			"u16" => Self::U16,
-			"u32" => Self::U32,
-			"i8"  => Self::I8,
-			"i16" => Self::I16,
-			"i32" => Self::I32,
-			"f16" => Self::F16,
-			"f32" => Self::F32,
-			_ => panic!("Currently only supports: u8, u16, u32, i8, i16, i32, f16, f32."),
-		}
+		if typename.ends_with("u8" ) {Self::U8} else
+		if typename.ends_with("u16") {Self::U16} else
+		if typename.ends_with("u32") {Self::U32} else
+		if typename.ends_with("i8" ) {Self::I8} else
+		if typename.ends_with("i16") {Self::I16} else
+		if typename.ends_with("i32") {Self::I32} else
+		if typename.ends_with("f16") {Self::F16} else
+		if typename.ends_with("f32") {Self::F32} else
+		{panic!("Currently only supports: u8, u16, u32, i8, i16, i32, f16, f32.")}
 	}
 }
 
-pub fn get_format_and_type_from_image_pixel<P: Pixel>(format: &mut ChannelType, format_type: &mut ComponentType) -> Result<(), LoadImageError> {
-	*format_type = match type_name::<P::Subpixel>() {
-		"u8" =>  ComponentType::U8,
-		"u16" => ComponentType::U16,
-		"i8" =>  ComponentType::I8,
-		"i16" => ComponentType::I16,
-		"f16" => ComponentType::F16,
-		"f32" => ComponentType::F32,
-		"i32" => ComponentType::I32,
-		"u32" => ComponentType::U32,
-		other => return Err(LoadImageError::UnsupportedImageType(format!("Unknown subpixel type `{other}`"))),
-	};
-	*format = match format_type {
 /// Input a generic type of `P` as the pixel data type, retrieve the channel type, and the component type
+pub fn get_channel_type_and_component_type_from_image_pixel<P: Pixel>(channel_type: &mut ChannelType, component_type: &mut ComponentType) -> Result<(), LoadImageError> {
+	*component_type = ComponentType::from_typename(type_name::<P::Subpixel>());
+	*channel_type = match component_type {
 		ComponentType::I32 | ComponentType::U32 => {
 			match P::CHANNEL_COUNT {
 				1 => ChannelType::RedInteger,
@@ -411,11 +399,11 @@ impl PixelBuffer {
 			height: u32,
 			depth: u32,
 			size_in_bytes: usize,
-			format: ChannelType,
-			format_type: ComponentType,
+			channel_type: ChannelType,
+			component_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
-		let pixel_size = Self::size_of_pixel(format, format_type);
+		let pixel_size = Self::size_of_pixel(channel_type, component_type);
 		let pitch = ((width as usize * pixel_size - 1) / 4 + 1) * 4;
 		let pitch_wh = pitch * height as usize;
 		let buffer = match initial_data {
@@ -434,18 +422,18 @@ impl PixelBuffer {
 			depth,
 			pitch,
 			pitch_wh,
-			format,
-			format_type,
+			channel_type,
+			component_type,
 		}
 	}
 
 	/// Create from an `ImageBuffer`
 	pub fn from_image<P: Pixel>(glcore: Rc<GLCore>, img: &ImageBuffer<P, Vec<P::Subpixel>>) -> Self {
 		let container = img.as_raw();
-		let mut format = ChannelType::Rgb;
-		let mut format_type = ComponentType::U8;
-		get_format_and_type_from_image_pixel::<P>(&mut format, &mut format_type).unwrap();
-		Self::new(glcore, img.width(), img.height(), 1, size_of_val(&container[..]), format, format_type, Some(container.as_ptr() as *const c_void))
+		let mut channel_type = ChannelType::Rgb;
+		let mut component_type = ComponentType::U8;
+		get_channel_type_and_component_type_from_image_pixel::<P>(&mut channel_type, &mut component_type).unwrap();
+		Self::new(glcore, img.width(), img.height(), 1, size_of_val(&container[..]), channel_type, component_type, Some(container.as_ptr() as *const c_void))
 	}
 
 	/// Create from a file
@@ -481,8 +469,8 @@ impl PixelBuffer {
 	}
 
 	/// Get the size for each pixel
-	pub fn size_of_pixel(format: ChannelType, format_type: ComponentType) -> usize {
-		let component_len = match format_type {
+	pub fn size_of_pixel(channel_type: ChannelType, component_type: ComponentType) -> usize {
+		let component_len = match component_type {
 			ComponentType::U8_332 |
 			ComponentType::U8_233Rev => return 1,
 			ComponentType::U16_565 |
@@ -504,7 +492,7 @@ impl PixelBuffer {
 			ComponentType::I32 |
 			ComponentType::F32 => 4,
 		};
-		match format {
+		match channel_type {
 			ChannelType::Red |
 			ChannelType::RedInteger |
 			ChannelType::StencilIndex |
@@ -528,13 +516,14 @@ impl PixelBuffer {
 		self.buffer.get_buffer()
 	}
 
-	pub fn get_format(&self) -> ChannelType {
-		self.format
+	/// Get the channel type
+	pub fn get_channel_type(&self) -> ChannelType {
+		self.channel_type
 	}
 
 	/// Get the component type
-	pub fn get_format_type(&self) -> ComponentType {
-		self.format_type
+	pub fn get_component_type(&self) -> ComponentType {
+		self.component_type
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state
@@ -667,7 +656,7 @@ impl Texture {
 			pixel_buffer: PixelBuffer,
 		) -> Self {
 		let ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter);
-		unsafe {ret.upload_texture(null(), pixel_buffer.get_format(), pixel_buffer.get_format_type(), has_mipmap)};
+		unsafe {ret.upload_texture(null(), pixel_buffer.get_channel_type(), pixel_buffer.get_component_type(), has_mipmap)};
 		ret
 	}
 
@@ -685,19 +674,19 @@ impl Texture {
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: ChannelType,
-			buffer_format_type: ComponentType,
+			buffer_channel_type: ChannelType,
+			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
 		let mut ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter);
 		if buffering {
-			ret.create_pixel_buffer(buffer_format, buffer_format_type, initial_data);
+			ret.create_pixel_buffer(buffer_channel_type, buffer_component_type, initial_data);
 		} else {
 			if let Some(data_pointer) = initial_data {
-				unsafe {ret.upload_texture(data_pointer, buffer_format, buffer_format_type, has_mipmap)};
+				unsafe {ret.upload_texture(data_pointer, buffer_channel_type, buffer_component_type, has_mipmap)};
 			} else {
 				let empty_data = vec![0u8; ret.bytes_of_texture];
-				unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_format, buffer_format_type, has_mipmap)};
+				unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_channel_type, buffer_component_type, has_mipmap)};
 			}
 		}
 		ret
@@ -713,11 +702,11 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: ChannelType,
-			buffer_format_type: ComponentType,
+			buffer_channel_type: ChannelType,
+			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::Tex1d, format, width, 1, 1, wrapping_s, TextureWrapping::Repeat, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
+		Self::new(glcore, TextureDimension::Tex1d, format, width, 1, 1, wrapping_s, TextureWrapping::Repeat, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
 	/// Create an 2D texture
@@ -732,11 +721,11 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: ChannelType,
-			buffer_format_type: ComponentType,
+			buffer_channel_type: ChannelType,
+			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::Tex2d, format, width, height, 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
+		Self::new(glcore, TextureDimension::Tex2d, format, width, height, 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
 	/// Create an 3D texture
@@ -753,11 +742,11 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: ChannelType,
-			buffer_format_type: ComponentType,
+			buffer_channel_type: ChannelType,
+			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::Tex3d, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
+		Self::new(glcore, TextureDimension::Tex3d, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
 	/// Create an cube map texture
@@ -769,11 +758,11 @@ impl Texture {
 	        mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			buffering: bool,
-			buffer_format: ChannelType,
-			buffer_format_type: ComponentType,
+			buffer_channel_type: ChannelType,
+			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
 		) -> Self {
-		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_format, buffer_format_type, initial_data)
+		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
 	/// Create a texture from an image
@@ -787,10 +776,10 @@ impl Texture {
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 		) -> Self {
-		let mut buffer_format = ChannelType::Rgb;
-		let mut buffer_format_type = ComponentType::U8;
-		get_format_and_type_from_image_pixel::<P>(&mut buffer_format, &mut buffer_format_type).unwrap();
-		let format = TextureFormat::from_format_and_type(buffer_format, buffer_format_type).unwrap();
+		let mut buffer_channel_type = ChannelType::Rgb;
+		let mut buffer_component_type = ComponentType::U8;
+		get_channel_type_and_component_type_from_image_pixel::<P>(&mut buffer_channel_type, &mut buffer_component_type).unwrap();
+		let format = TextureFormat::from_channel_type_and_component_type(buffer_channel_type, buffer_component_type).unwrap();
 		let pixel_buffer = PixelBuffer::from_image(glcore.clone(), img);
 		match dim {
 			TextureDimension::Tex1d => {
@@ -881,23 +870,23 @@ impl Texture {
 		})
 	}
 
-	pub unsafe fn download_texture(&self, data: *mut c_void, buffer_format: ChannelType, buffer_format_type: ComponentType) {
 	/// Retrieve the pixels from the texture to the specified data pointer regardless of is currently using a PBO or not
+	pub unsafe fn download_texture(&self, data: *mut c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType) {
 		let pointer = data as *mut u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
 				let bind_tex = self.bind();
-				self.glcore.glGetTexImage(TextureTarget::Tex1d as u32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *mut c_void);
+				self.glcore.glGetTexImage(TextureTarget::Tex1d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
 				bind_tex.unbind();
 			}
 			TextureDimension::Tex2d => {
 				let bind_tex = self.bind();
-				self.glcore.glGetTexImage(TextureTarget::Tex2d as u32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *mut c_void);
+				self.glcore.glGetTexImage(TextureTarget::Tex2d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
 				bind_tex.unbind();
 			}
 			TextureDimension::Tex3d => {
 				let bind_tex = self.bind();
-				self.glcore.glGetTexImage(TextureTarget::Tex3d as u32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *mut c_void);
+				self.glcore.glGetTexImage(TextureTarget::Tex3d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
 				bind_tex.unbind();
 			}
 			TextureDimension::TexCube => {
@@ -905,20 +894,20 @@ impl Texture {
 					let target = *target;
 					let bind_tex = self.bind_face(target);
 					let pointer = pointer.wrapping_add(i * self.bytes_of_face);
-					self.glcore.glGetTexImage(target as u32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *mut c_void);
+					self.glcore.glGetTexImage(target as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
 					bind_tex.unbind();
 				}
 			}
 		}
 	}
 
-	pub unsafe fn upload_texture(&self, data: *const c_void, buffer_format: ChannelType, buffer_format_type: ComponentType, regen_mipmap: bool) {
 	/// Load the texture with the specified data pointer regardless of is currently using a PBO or not
+	pub unsafe fn upload_texture(&self, data: *const c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, regen_mipmap: bool) {
 		let pointer = data as *const u8;
 		match self.dim {
 			TextureDimension::Tex1d => {
 				let bind_tex = self.bind();
-				self.glcore.glTexImage1D(TextureTarget::Tex1d as u32, 0, self.format as i32, self.width as i32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *const c_void);
+				self.glcore.glTexImage1D(TextureTarget::Tex1d as u32, 0, self.format as i32, self.width as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
 				if regen_mipmap && self.has_mipmap {
 					self.glcore.glGenerateMipmap(TextureTarget::Tex1d as u32);
 				}
@@ -926,7 +915,7 @@ impl Texture {
 			}
 			TextureDimension::Tex2d => {
 				let bind_tex = self.bind();
-				self.glcore.glTexImage2D(TextureTarget::Tex2d as u32, 0, self.format as i32, self.width as i32, self.height as i32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *const c_void);
+				self.glcore.glTexImage2D(TextureTarget::Tex2d as u32, 0, self.format as i32, self.width as i32, self.height as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
 				if regen_mipmap && self.has_mipmap {
 					self.glcore.glGenerateMipmap(TextureTarget::Tex2d as u32);
 				}
@@ -934,7 +923,7 @@ impl Texture {
 			}
 			TextureDimension::Tex3d => {
 				let bind_tex = self.bind();
-				self.glcore.glTexImage3D(TextureTarget::Tex3d as u32, 0, self.format as i32, self.width as i32, self.height as i32, self.depth as i32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *const c_void);
+				self.glcore.glTexImage3D(TextureTarget::Tex3d as u32, 0, self.format as i32, self.width as i32, self.height as i32, self.depth as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
 				if regen_mipmap && self.has_mipmap {
 					self.glcore.glGenerateMipmap(TextureTarget::Tex3d as u32);
 				}
@@ -945,7 +934,7 @@ impl Texture {
 					let target = *target;
 					let bind_tex = self.bind_face(target);
 					let pointer = pointer.wrapping_add(i * self.bytes_of_face);
-					self.glcore.glTexImage2D(target as u32, 0, self.format as i32, self.width as i32, self.height as i32, 0, buffer_format as u32, buffer_format_type as u32, pointer as *const c_void);
+					self.glcore.glTexImage2D(target as u32, 0, self.format as i32, self.width as i32, self.height as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
 					if regen_mipmap && self.has_mipmap {
 						self.glcore.glGenerateMipmap(target as u32);
 					}
@@ -958,26 +947,26 @@ impl Texture {
 	/// Read the pixels from the texture to the pixel buffer
 	pub fn pack_pixel_buffer(&self) {
 		let pixel_buffer = self.pixel_buffer.as_ref().unwrap();
-		let buffer_format = pixel_buffer.format;
-		let buffer_format_type = pixel_buffer.format_type;
+		let buffer_channel_type = pixel_buffer.channel_type;
+		let buffer_component_type = pixel_buffer.component_type;
 		let bind_pbo = pixel_buffer.bind();
-		unsafe {self.download_texture(std::ptr::null_mut::<c_void>(), buffer_format, buffer_format_type)};
+		unsafe {self.download_texture(std::ptr::null_mut::<c_void>(), buffer_channel_type, buffer_component_type)};
 		bind_pbo.unbind();
 	}
 
 	/// Apply the change to the pixel buffer of the texture
 	pub fn unpack_pixel_buffer(&self, regen_mipmap: bool) {
 		let pixel_buffer = self.pixel_buffer.as_ref().unwrap();
-		let buffer_format = pixel_buffer.format;
-		let buffer_format_type = pixel_buffer.format_type;
+		let buffer_channel_type = pixel_buffer.channel_type;
+		let buffer_component_type = pixel_buffer.component_type;
 		let bind_pbo = pixel_buffer.bind();
-		unsafe {self.upload_texture(std::ptr::null(), buffer_format, buffer_format_type, regen_mipmap)};
+		unsafe {self.upload_texture(std::ptr::null(), buffer_channel_type, buffer_component_type, regen_mipmap)};
 		bind_pbo.unbind();
 	}
 
-	pub fn create_pixel_buffer(&mut self, buffer_format: ChannelType, buffer_format_type: ComponentType, initial_data: Option<*const c_void>) {
-		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_format, buffer_format_type, initial_data))
 	/// Create the PBO if not been created earlier
+	pub fn create_pixel_buffer(&mut self, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, initial_data: Option<*const c_void>) {
+		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_channel_type, buffer_component_type, initial_data))
 	}
 
 	/// Discard the PBO if not necessarily need it
@@ -1025,11 +1014,6 @@ impl<'a> TextureBind<'a> {
 			texture,
 			target,
 		}
-	}
-
-	/// Set the active texture unit
-	pub fn set_active_unit(&self, unit: u32) {
-		self.texture.glcore.glActiveTexture(GL_TEXTURE0 + unit)
 	}
 
 	/// Explicitly unbind the texture.
