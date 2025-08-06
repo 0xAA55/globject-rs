@@ -22,7 +22,7 @@ pub struct Framebuffer {
 	name: u32,
 
 	/// The name of the draw targets and the binding target and the texture
-	pub draw_targets: BTreeMap<String, (FramebufferTarget, Rc<Texture>)>,
+	pub draw_targets: BTreeMap<String, (FramebufferTarget, Rc<dyn GenericTexture>)>,
 }
 
 /// The binding guard of the framebuffer

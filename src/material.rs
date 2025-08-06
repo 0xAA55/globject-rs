@@ -9,7 +9,7 @@ use std::{
 /// The material component
 #[derive(Debug, Clone)]
 pub enum MaterialComponent {
-	Texture(Rc<Texture>),
+	Texture(Rc<dyn GenericTexture>),
 	Color(Vec4),
 	Luminance(f32),
 }
