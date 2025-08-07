@@ -3,8 +3,9 @@
 
 use crate::prelude::*;
 use std::{
+	any::{Any, type_name},
 	collections::BTreeMap,
-	ffi::CString,
+	ffi::{CString, c_void},
 	fmt::{self, Debug, Display, Formatter},
 	mem::{transmute, size_of},
 	path::Path,
@@ -31,6 +32,12 @@ pub enum ShaderError {
 
 	/// Shader program linkage error
 	LinkageError(String),
+
+	/// Attrib not found
+	AttribNotFound(String),
+
+	/// Uniform not found
+	UniformNotFound(String),
 }
 
 /// Error produced from the shader
@@ -349,6 +356,131 @@ impl<'a> ShaderUse<'a> {
 		bind.unbind();
 	}
 
+	/// Wrapper for matrices of attrib
+	pub unsafe fn vertex_attrib_matrix_pointer(&self, location: u32, cols: u32, rows: u32, base_type: ShaderInputType, normalize: bool, stride: isize, pointer: *const c_void) {
+		match base_type {
+			ShaderInputType::Float => {
+				for i in 0..rows {
+					self.shader.glcore.glVertexAttribPointer(location + i, cols as i32, base_type as u32, normalize as u8, stride as i32, pointer as *const _)
+				}
+			}
+			ShaderInputType::Double => {
+				for i in 0..rows {
+					self.shader.glcore.glVertexAttribLPointer(location + i, cols as i32, base_type as u32, stride as i32, pointer as *const _)
+				}
+			}
+			_ => panic!("Bad parameter for `vertex_attrib_matrix_pointer()`: base_type = {base_type:?}"),
+		}
+	}
+
+	/// Set attrib value by pointer
+	pub unsafe fn set_attrib_ptr<T: Any>(&self, name: &str, attrib_type: &ShaderInputVarType, do_normalize: bool, stride: isize, ptr_param: *const c_void) -> Result<(), ShaderError> {
+		let location = self.shader.get_attrib_location(&name);
+		if location >= 0 {
+			let location = location as u32;
+			let (p_size, p_rows) = attrib_type.get_size_and_rows();
+			if type_name::<T>().ends_with("f32") {unsafe {self.vertex_attrib_matrix_pointer(location, p_size, p_rows, attrib_type.get_base_type(), do_normalize, stride, ptr_param)}} else
+			if type_name::<T>().ends_with("i32") {self.shader.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
+			if type_name::<T>().ends_with("u32") {self.shader.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
+			if type_name::<T>().ends_with("f64") {unsafe {self.vertex_attrib_matrix_pointer(location, p_size, p_rows, attrib_type.get_base_type(), do_normalize, stride, ptr_param)}} else
+			{panic!("The generic type parameter of `ShaderUse::set_attrib_ptr()` must be `f32`, `i32`, `u32`, `f64`")}
+			Ok(())
+		} else {
+			Err(ShaderError::AttribNotFound(name.to_owned()))
+		}
+	}
+
+	/// Set attrib value
+	pub fn set_attrib(&self, name: &str, v: &dyn Any) -> Result<(), ShaderError> {
+		let location = self.shader.get_attrib_location(&name);
+		if location >= 0 {
+			let location = location as u32;
+			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glVertexAttribPointer (location, 1, ShaderInputType::Float as u32, 0, 0, (v as *const f32) as *const _)} else
+			if let Some(v) = v.downcast_ref::<Vec2>()		{self.shader.glcore.glVertexAttribPointer (location, 2, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<Vec3>()		{self.shader.glcore.glVertexAttribPointer (location, 3, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<Vec4>()		{self.shader.glcore.glVertexAttribPointer (location, 4, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<Mat2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat2x3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat2x4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat3x2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat3x4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat4x2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<Mat4x3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<i32>()		{self.shader.glcore.glVertexAttribIPointer(location, 1, ShaderInputType::Int as u32, 0, (v as *const i32) as *const _)} else
+			if let Some(v) = v.downcast_ref::<IVec2>()		{self.shader.glcore.glVertexAttribIPointer(location, 2, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<IVec3>()		{self.shader.glcore.glVertexAttribIPointer(location, 3, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<IVec4>()		{self.shader.glcore.glVertexAttribIPointer(location, 4, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<u32>()		{self.shader.glcore.glVertexAttribIPointer(location, 1, ShaderInputType::UInt as u32, 0, (v as *const u32) as *const _)} else
+			if let Some(v) = v.downcast_ref::<UVec2>()		{self.shader.glcore.glVertexAttribIPointer(location, 2, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<UVec3>()		{self.shader.glcore.glVertexAttribIPointer(location, 3, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<UVec4>()		{self.shader.glcore.glVertexAttribIPointer(location, 4, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<f64>()		{self.shader.glcore.glVertexAttribLPointer(location, 1, ShaderInputType::Double as u32, 0, (v as *const f64) as *const _)} else
+			if let Some(v) = v.downcast_ref::<DVec2>()		{self.shader.glcore.glVertexAttribLPointer(location, 2, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<DVec3>()		{self.shader.glcore.glVertexAttribLPointer(location, 3, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<DVec4>()		{self.shader.glcore.glVertexAttribLPointer(location, 4, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)} else
+			if let Some(v) = v.downcast_ref::<DMat2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat2x3>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat2x4>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat3x2>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat3x4>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat4x2>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<DMat4x3>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			{panic!("Unknown type of attrib value: {v:?}")}
+			Ok(())
+		} else {
+			Err(ShaderError::AttribNotFound(name.to_owned()))
+		}
+	}
+
+	/// Set uniform value
+	pub fn set_uniform(&self, name: &str, v: &dyn Any) -> Result<(), ShaderError> {
+		let location = self.shader.get_uniform_location(&name);
+		if location >= 0 {
+			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glUniform1fv(location, 1, v as *const _)} else
+			if let Some(v) = v.downcast_ref::<Vec2>()		{self.shader.glcore.glUniform2fv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Vec3>()		{self.shader.glcore.glUniform3fv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Vec4>()		{self.shader.glcore.glUniform4fv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat2>()		{self.shader.glcore.glUniformMatrix2fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat3>()		{self.shader.glcore.glUniformMatrix3fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat4>()		{self.shader.glcore.glUniformMatrix4fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat2x3>()		{self.shader.glcore.glUniformMatrix2x3fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat2x4>()		{self.shader.glcore.glUniformMatrix2x4fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat3x2>()		{self.shader.glcore.glUniformMatrix3x2fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat3x4>()		{self.shader.glcore.glUniformMatrix3x4fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat4x2>()		{self.shader.glcore.glUniformMatrix4x2fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<Mat4x3>()		{self.shader.glcore.glUniformMatrix4x3fv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<i32>()		{self.shader.glcore.glUniform1iv(location, 1, v as *const _)} else
+			if let Some(v) = v.downcast_ref::<IVec2>()		{self.shader.glcore.glUniform2iv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<IVec3>()		{self.shader.glcore.glUniform3iv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<IVec4>()		{self.shader.glcore.glUniform4iv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<u32>()		{self.shader.glcore.glUniform1uiv(location, 1, v as *const _)} else
+			if let Some(v) = v.downcast_ref::<UVec2>()		{self.shader.glcore.glUniform2uiv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<UVec3>()		{self.shader.glcore.glUniform3uiv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<UVec4>()		{self.shader.glcore.glUniform4uiv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<f64>()		{self.shader.glcore.glUniform1dv(location, 1, v as *const _)} else
+			if let Some(v) = v.downcast_ref::<DVec2>()		{self.shader.glcore.glUniform2dv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DVec3>()		{self.shader.glcore.glUniform3dv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DVec4>()		{self.shader.glcore.glUniform4dv(location, 1, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat2>()		{self.shader.glcore.glUniformMatrix2dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat3>()		{self.shader.glcore.glUniformMatrix3dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat4>()		{self.shader.glcore.glUniformMatrix4dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat2x3>()	{self.shader.glcore.glUniformMatrix2x3dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat2x4>()	{self.shader.glcore.glUniformMatrix2x4dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat3x2>()	{self.shader.glcore.glUniformMatrix3x2dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat3x4>()	{self.shader.glcore.glUniformMatrix3x4dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat4x2>()	{self.shader.glcore.glUniformMatrix4x2dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<DMat4x3>()	{self.shader.glcore.glUniformMatrix4x3dv(location, 1, 0, v.as_ptr())} else
+			{panic!("Unknown type of uniform value: {v:?}")}
+			Ok(())
+		} else {
+			Err(ShaderError::UniformNotFound(name.to_owned()))
+		}
+	}
+
 	/// Set shader uniform inputs by a material
 	pub fn setup_material_uniforms(&self, material: &dyn Material, prefix: Option<&str>, camel_case: bool) {
 		let glcore = &self.shader.glcore;
@@ -505,6 +637,7 @@ impl Debug for Shader {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Shader")
 		.field("program", &self.program)
+		.field("shader_type", &self.shader_type)
 		.finish()
 	}
 }
@@ -517,6 +650,8 @@ impl Debug for ShaderError {
 			Self::FSError(infolog) => write!(f, "Fragment Shader Error:\n{infolog}"),
 			Self::CSError(infolog) => write!(f, "Compute Shader Error:\n{infolog}"),
 			Self::LinkageError(infolog) => write!(f, "Shader Linkage Error:\n{infolog}"),
+			Self::AttribNotFound(attrib) => write!(f, "Attrib not found: {attrib}"),
+			Self::UniformNotFound(uniform) => write!(f, "Uniform not found: {uniform}"),
 		}
 	}
 }
