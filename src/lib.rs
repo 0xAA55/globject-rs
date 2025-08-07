@@ -323,9 +323,16 @@ void main() {
 			}
 		}
 
-		fn render(&self, glcore: &GLCore) {
+		fn render(&self, glcore: &GLCore, frame_time: f64, width: u32, height: u32) {
+			glcore.glViewport(0, 0, width as i32, height as i32);
 			glcore.glClearColor(0.0, 0.3, 0.5, 1.0);
 			glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			let shader = self.shader.use_program();
+			let time = frame_time as f32;
+			let _ = shader.set_uniform("iResolution", &Vec3::new(width as f32, height as f32, 0.0));
+			let _ = shader.set_uniform("iTime", &time);
+			shader.unuse();
 
 			let p_bind = self.pipeline.bind();
 			p_bind.draw(None);
@@ -337,7 +344,7 @@ void main() {
 		pub fn new() -> Result<Self, AppError> {
 			let mut glfw = match glfw::init_no_callbacks() {
 				Ok(glfw) => glfw,
-				Err(_) => return Err(AppError::GLFWInitErr), // Due to doc, won't return `glfw::InitError::AlreadyInitialized`
+				Err(_) => return Err(AppError::GLFWInitErr), // According to the spec, `glfw::init_no_callbacks()` won't return `glfw::InitError::AlreadyInitialized`
 			};
 			let (mut window, events) = glfw.create_window(1024, 768, "GLFW Window", glfw::WindowMode::Windowed).ok_or(AppError::GLFWCreateWindowFailed)?;
 			window.set_key_polling(true);
@@ -360,7 +367,8 @@ void main() {
 				let time_cur_frame = self.glfw.get_time();
 
 				if let Some(renderer) = self.renderer.as_ref() {
-					renderer.render(&self.glcore);
+					let (width, height) = self.window.get_framebuffer_size();
+					renderer.render(&self.glcore, time_cur_frame, width as u32, height as u32);
 					self.window.swap_buffers();
 				}
 
