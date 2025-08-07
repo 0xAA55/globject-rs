@@ -68,7 +68,7 @@ where
 	E: BufferVecItem,
 	I: BufferVecItem,
 	C: BufferVecItem {
-	/// Create a new dynamic mesh from the buffers
+	/// Create a new mesh from the buffers
 	pub fn new(primitive: PrimitiveMode, vertex_buffer: BV, element_buffer: Option<BE>, instance_buffer: Option<BI>, command_buffer: Option<BC>) -> Self {
 		Self {
 			primitive,
