@@ -143,7 +143,7 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 						};
 						let ptr_param = cur_offset as *const c_void;
 						self.glcore.glEnableVertexAttribArray(location);
-						if attrib_type.is_float()	{self.glcore.glVertexAttribPointer(location, p_size as i32, attrib_type.get_base_type() as u32, do_normalize, stride as i32, ptr_param)} else
+						if attrib_type.is_float()	{self.glcore.glVertexAttribPointer (location, p_size as i32, attrib_type.get_base_type() as u32, do_normalize, stride as i32, ptr_param)} else
 						if attrib_type.is_integer()	{self.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
 						if attrib_type.is_double()	{self.glcore.glVertexAttribLPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
 						{panic!("Unknown data type of the attrib `{} {field_name}`", attrib_type.get_type())}
