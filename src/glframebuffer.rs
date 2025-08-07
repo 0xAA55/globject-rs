@@ -48,8 +48,8 @@ impl Framebuffer {
 	}
 
 	/// Bind to the default framebuffer
-	pub fn default_bind(&self) {
-		self.glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	pub fn default_bind(glcore: &GLCore) {
+		glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	}
 }
 

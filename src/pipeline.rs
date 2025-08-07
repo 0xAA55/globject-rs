@@ -337,7 +337,7 @@ impl<'a, V: VertexType, I: VertexType> PipelineBind<'a, V, I> {
 		let program = self.pipeline.shader.use_program();
 		let fbo_bind = fbo.map_or_else(
 		|| {
-			glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			Framebuffer::default_bind(glcore);
 			None
 		},
 		|fbo| {
