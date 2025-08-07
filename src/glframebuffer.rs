@@ -46,6 +46,11 @@ impl Framebuffer {
 	pub fn bind<'a>(&'a self) -> FramebufferBind<'a> {
 		FramebufferBind::new(self)
 	}
+
+	/// Bind to the default framebuffer
+	pub fn default_bind(&self) {
+		self.glcore.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	}
 }
 
 impl<'a> FramebufferBind<'a> {
