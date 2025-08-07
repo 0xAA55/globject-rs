@@ -35,4 +35,8 @@
 * 在具有 OpenGL 上下文的情况下，实例化 `GLCore`，其管理所有的 OpenGL API 函数指针。
 * 具有 `GLCore` 的实例后，即可创建、使用本库的各种对象。
 
+## 关于单元测试
+
+我从 [shadertoy](https://www.shadertoy.com/view/MsjSzz) 借用了着色器来运行单元测试。如果你是作者，欢迎就此事与我联系。
+
 见单元测试。

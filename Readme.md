@@ -35,4 +35,8 @@ This is a wrapper library for OpenGL objects, encapsulating OpenGL objects as Ru
 * Once you have an OpenGL context, instantiate `GLCore`, which manages all OpenGL API function pointers.
 * Once you have an instance of `GLCore`, you can create and use various objects in this library.
 
+## About the unit test
+
+I borrowed the shader from [shadertoy](https://www.shadertoy.com/view/MsjSzz) to run the unit test. If you are the Author, welcome to contact me about this.
+
 See the unit tests.
