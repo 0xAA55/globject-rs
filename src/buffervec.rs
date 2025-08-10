@@ -25,60 +25,60 @@ pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
 	fn capacity(&self) -> usize;
 
 	/// Resizes to the new size, reallocate the buffer if the new size is larger
-	fn resize(&mut self, new_len: usize, value: T);
+	fn resize(&mut self, new_len: usize, value: T) -> Result<(), GLCoreError>;
 
 	/// Shrink to the exact number of items
-	fn shrink_to_fit(&mut self);
+	fn shrink_to_fit(&mut self) -> Result<(), GLCoreError>;
 
 	/// Retrieve a single item from the buffer in the GPU
-	fn get(&self, index: usize) -> T;
+	fn get(&self, index: usize) -> Result<T, GLCoreError>;
 
 	/// Update a single item from the buffer in the GPU
-	fn set(&mut self, index: usize, data: &T);
+	fn set(&mut self, index: usize, data: &T) -> Result<(), GLCoreError>;
 
 	/// Retrieve a slice of items from the buffer in the GPU
-	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Vec<T>;
+	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Result<Vec<T>, GLCoreError>;
 
 	/// Update a slice of itrems to the buffer in the GPU
-	fn set_slice_of_data(&mut self, start_index: usize, data: &[T]);
+	fn set_slice_of_data(&mut self, start_index: usize, data: &[T]) -> Result<(), GLCoreError>;
 
 	/// Retrieve a single item from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
-	fn get_mut(&mut self, index: usize) -> BufferVecItemRefMut<Self, T> {
+	fn get_mut<'a>(&'a mut self, index: usize) -> Result<BufferVecItemRefMut<'a, Self, T>, GLCoreError> {
 		BufferVecItemRefMut::new(self, index)
 	}
 
 	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
-	fn get_mut_slice(&mut self, range: Range<usize>) -> BufferVecSliceRefMut<Self, T> {
+	fn get_mut_slice<'a>(&'a mut self, range: Range<usize>) -> Result<BufferVecSliceRefMut<'a, Self, T>, GLCoreError> {
 		BufferVecSliceRefMut::new_range(self, range)
 	}
 
 	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
-	fn get_mut_slice_range_from(&mut self, range: RangeFrom<usize>) -> BufferVecSliceRefMut<Self, T> {
+	fn get_mut_slice_range_from<'a>(&'a mut self, range: RangeFrom<usize>) -> Result<BufferVecSliceRefMut<'a, Self, T>, GLCoreError> {
 		BufferVecSliceRefMut::new_range_from(self, range)
 	}
 
 	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
-	fn get_mut_slice_range_to(&mut self, range: RangeTo<usize>) -> BufferVecSliceRefMut<Self, T> {
+	fn get_mut_slice_range_to<'a>(&'a mut self, range: RangeTo<usize>) -> Result<BufferVecSliceRefMut<'a, Self, T>, GLCoreError> {
 		BufferVecSliceRefMut::new_range_to(self, range)
 	}
 
 	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
-	fn get_mut_slice_range_full(&mut self, range: RangeFull) -> BufferVecSliceRefMut<Self, T> {
+	fn get_mut_slice_range_full<'a>(&'a mut self, range: RangeFull) -> Result<BufferVecSliceRefMut<'a, Self, T>, GLCoreError> {
 		BufferVecSliceRefMut::new_range_full(self, range)
 	}
 
 	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
-	fn get_mut_slice_range_inclusive(&mut self, range: RangeInclusive<usize>) -> BufferVecSliceRefMut<Self, T> {
+	fn get_mut_slice_range_inclusive<'a>(&'a mut self, range: RangeInclusive<usize>) -> Result<BufferVecSliceRefMut<'a, Self, T>, GLCoreError> {
 		BufferVecSliceRefMut::new_range_inclusive(self, range)
 	}
 
 	/// Retrieve a slice from the buffer in the GPU, and after writing to it, update it to the buffer in the GPU
-	fn get_mut_slice_range_to_inclusive(&mut self, range: RangeToInclusive<usize>) -> BufferVecSliceRefMut<Self, T> {
+	fn get_mut_slice_range_to_inclusive<'a>(&'a mut self, range: RangeToInclusive<usize>) -> Result<BufferVecSliceRefMut<'a, Self, T>, GLCoreError> {
 		BufferVecSliceRefMut::new_range_to_inclusive(self, range)
 	}
 
 	/// Flush the buffer to the GPU if it has a cache in the system memory
-	fn flush(&mut self) {}
+	fn flush(&mut self) -> Result<(), GLCoreError> {Ok(())}
 
 	/// Check if the content of the buffer is empty
 	fn is_empty(&self) -> bool {
@@ -89,12 +89,12 @@ pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
 	fn set_target(&mut self, target: BufferTarget);
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	fn bind<'a>(&'a self) -> BufferBind<'a> {
+	fn bind<'a>(&'a self) -> Result<BufferBind<'a>, GLCoreError> {
 		self.get_buffer().bind()
 	}
 
 	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state, while change the binding target.
-	fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
+	fn bind_to<'a>(&'a self, target: BufferTarget) -> Result<BufferBind<'a>, GLCoreError> {
 		self.get_buffer().bind_to(target)
 	}
 }
@@ -125,13 +125,13 @@ impl<'a, B, T> BufferVecItemRefMut<'a, B, T>
 where
 	B: BufferVec<T>,
 	T: BufferVecItem {
-	fn new(buffer: &'a mut B, index: usize) -> Self {
-		let item = buffer.get(index);
-		Self {
+	fn new(buffer: &'a mut B, index: usize) -> Result<Self, GLCoreError> {
+		let item = buffer.get(index)?;
+		Ok(Self {
 			item,
 			index,
 			buffer,
-		}
+		})
 	}
 }
 
@@ -159,7 +159,7 @@ where
 	B: BufferVec<T>,
 	T: BufferVecItem {
 	fn drop(&mut self) {
-		self.buffer.set(self.index, &self.item)
+		self.buffer.set(self.index, &self.item).unwrap()
 	}
 }
 
@@ -167,58 +167,58 @@ impl<'a, B, T> BufferVecSliceRefMut<'a, B, T>
 where
 	B: BufferVec<T>,
 	T: BufferVecItem {
-	fn new_range(buffer: &'a mut B, range: Range<usize>) -> Self {
-		let slice = buffer.get_slice_of_data(range.start, range.end - range.start);
-		Self {
+	fn new_range(buffer: &'a mut B, range: Range<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(range.start, range.end - range.start)?;
+		Ok(Self {
 			slice,
 			start_index: range.start,
 			buffer,
-		}
+		})
 	}
 
-	fn new_range_from(buffer: &'a mut B, range: RangeFrom<usize>) -> Self {
-		let slice = buffer.get_slice_of_data(range.start, buffer.len() - range.start);
-		Self {
+	fn new_range_from(buffer: &'a mut B, range: RangeFrom<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(range.start, buffer.len() - range.start)?;
+		Ok(Self {
 			slice,
 			start_index: range.start,
 			buffer,
-		}
+		})
 	}
 
-	fn new_range_to(buffer: &'a mut B, range: RangeTo<usize>) -> Self {
-		let slice = buffer.get_slice_of_data(0, range.end);
-		Self {
+	fn new_range_to(buffer: &'a mut B, range: RangeTo<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, range.end)?;
+		Ok(Self {
 			slice,
 			start_index: 0,
 			buffer,
-		}
+		})
 	}
 
-	fn new_range_full(buffer: &'a mut B, _: RangeFull) -> Self {
-		let slice = buffer.get_slice_of_data(0, buffer.len());
-		Self {
+	fn new_range_full(buffer: &'a mut B, _: RangeFull) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, buffer.len())?;
+		Ok(Self {
 			slice,
 			start_index: 0,
 			buffer,
-		}
+		})
 	}
 
-	fn new_range_inclusive(buffer: &'a mut B, range: RangeInclusive<usize>) -> Self {
-		let slice = buffer.get_slice_of_data(*range.start(), *range.end() + 1 - *range.start());
-		Self {
+	fn new_range_inclusive(buffer: &'a mut B, range: RangeInclusive<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(*range.start(), *range.end() + 1 - *range.start())?;
+		Ok(Self {
 			slice,
 			start_index: *range.start(),
 			buffer,
-		}
+		})
 	}
 
-	fn new_range_to_inclusive(buffer: &'a mut B, range: RangeToInclusive<usize>) -> Self {
-		let slice = buffer.get_slice_of_data(0, range.end + 1);
-		Self {
+	fn new_range_to_inclusive(buffer: &'a mut B, range: RangeToInclusive<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, range.end + 1)?;
+		Ok(Self {
 			slice,
 			start_index: 0,
 			buffer,
-		}
+		})
 	}
 }
 
@@ -246,7 +246,7 @@ where
 	B: BufferVec<T>,
 	T: BufferVecItem {
 	fn drop(&mut self) {
-		self.buffer.set_slice_of_data(self.start_index, &self.slice[..])
+		self.buffer.set_slice_of_data(self.start_index, &self.slice[..]).unwrap();
 	}
 }
 
@@ -293,63 +293,67 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecStatic<T> {
 		self.num_items
 	}
 
-	fn resize(&mut self, new_len: usize, value: T) {
+	fn resize(&mut self, new_len: usize, value: T) -> Result<(), GLCoreError> {
 		let new_size = new_len * size_of::<T>();
 		if new_size > self.capacity {
-			self.buffer.resize(new_len * size_of::<T>(), value);
+			self.buffer.resize(new_len * size_of::<T>(), value)?;
 		}
 		self.num_items = new_len;
+		Ok(())
 	}
 
-	fn shrink_to_fit(&mut self) {
+	fn shrink_to_fit(&mut self) -> Result<(), GLCoreError> {
 		self.capacity = self.num_items;
-		self.buffer.resize(self.capacity * size_of::<T>(), T::default());
+		self.buffer.resize(self.capacity * size_of::<T>(), T::default())?;
+		Ok(())
 	}
 
-	fn get(&self, index: usize) -> T {
+	fn get(&self, index: usize) -> Result<T, GLCoreError> {
 		let offset = index * size_of::<T>();
-		let bind = self.buffer.bind();
-		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly);
+		let bind = self.buffer.bind()?;
+		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly)?;
 		let addr = addr as *mut T;
 		let ret = unsafe { *addr };
 		map.unmap();
-		ret
+		Ok(ret)
 	}
 
-	fn set(&mut self, index: usize, data: &T) {
+	fn set(&mut self, index: usize, data: &T) -> Result<(), GLCoreError> {
 		let offset = index * size_of::<T>();
-		let bind = self.buffer.bind();
-		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly);
+		let bind = self.buffer.bind()?;
+		let (map, addr) = bind.map_ranged(offset, size_of::<T>(), MapAccess::WriteOnly)?;
 		let addr = addr as *mut T;
 		unsafe {
 			*addr = *data;
 		}
 		map.unmap();
+		Ok(())
 	}
 
-	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Vec<T> {
+	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Result<Vec<T>, GLCoreError> {
 		let offset = start_index * size_of::<T>();
 		let end_index = start_index + len;
-		let bind = self.buffer.bind();
-		let (map, addr) = bind.map_ranged(offset, len * size_of::<T>(), MapAccess::WriteOnly);
+		let bind = self.buffer.bind()?;
+		let (map, addr) = bind.map_ranged(offset, len * size_of::<T>(), MapAccess::WriteOnly)?;
 		let addr = addr as *mut T;
 		let mut ret: Vec<T> = Vec::with_capacity(len);
 		for i in start_index..end_index {
 			ret.push(unsafe {*addr.wrapping_add(i)});
 		}
 		map.unmap();
-		ret
+		Ok(ret)
 	}
 
-	fn set_slice_of_data(&mut self, index: usize, data: &[T]) {
+	fn set_slice_of_data(&mut self, index: usize, data: &[T]) -> Result<(), GLCoreError> {
 		let offset = index * size_of::<T>();
-		let bind = self.buffer.bind();
-		let (map, addr) = bind.map_ranged(offset, size_of_val(data), MapAccess::WriteOnly);
+		let bind = self.buffer.bind()?;
+		let (map, addr) = bind.map_ranged(offset, size_of_val(data), MapAccess::WriteOnly)?;
 		let addr = addr as *mut T;
 		for (i, item) in data.iter().enumerate() {
 			unsafe { *addr.wrapping_add(i) = *item; };
 		}
 		map.unmap();
+		Ok(())
 	}
 
 	fn set_target(&mut self, target: BufferTarget) {
@@ -395,13 +399,13 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 	}
 
 	/// Convert an `BufferVecStatic` to the `BufferVecDynamic`
-	pub fn new(buffer: BufferVecStatic<T>) -> Self {
+	pub fn new(buffer: BufferVecStatic<T>) -> Result<Self, GLCoreError> {
 		let capacity = buffer.capacity();
 		let mut cache_modified_bitmap = BitVec::new();
-		let cache = buffer.get_slice_of_data(0, capacity);
+		let cache = buffer.get_slice_of_data(0, capacity)?;
 		cache_modified_bitmap.resize(capacity, false);
 		let num_items = buffer.len();
-		Self {
+		Ok(Self {
 			glcore: buffer.glcore.clone(),
 			buffer,
 			cache,
@@ -409,7 +413,7 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 			cache_modified: false,
 			num_items,
 			capacity
-		}
+		})
 	}
 }
 
@@ -426,62 +430,66 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecDynamic<T> {
 		self.capacity
 	}
 
-	fn resize(&mut self, new_len: usize, value: T) {
+	fn resize(&mut self, new_len: usize, value: T) -> Result<(), GLCoreError> {
 		self.cache.resize(new_len, value);
 		self.num_items = new_len;
 		if new_len > self.capacity {
 			self.cache_modified_bitmap.clear(); // set all false
 			self.cache_modified_bitmap.resize(new_len, false);
-			self.buffer.resize(new_len, value);
+			self.buffer.resize(new_len, value)?;
 			self.capacity = new_len;
 			self.cache_modified = false;
 		} else {
 			self.cache_modified_bitmap.resize(new_len, false);
 		}
+		Ok(())
 	}
 
-	fn shrink_to_fit(&mut self) {
+	fn shrink_to_fit(&mut self) -> Result<(), GLCoreError> {
 		if self.capacity > self.num_items {
 			self.cache.shrink_to_fit();
 			self.cache_modified_bitmap.clear(); // set all false
 			self.cache_modified_bitmap.resize(self.num_items, false);
-			self.buffer.resize(self.num_items, T::default());
+			self.buffer.resize(self.num_items, T::default())?;
 			self.capacity = self.num_items;
 			self.cache_modified = false;
 		}
+		Ok(())
 	}
 
-	fn get(&self, index: usize) -> T {
-		self.cache[index]
+	fn get(&self, index: usize) -> Result<T, GLCoreError> {
+		Ok(self.cache[index])
 	}
 
-	fn set(&mut self, index: usize, data: &T) {
+	fn set(&mut self, index: usize, data: &T) -> Result<(), GLCoreError> {
 		self.cache[index] = *data;
 		self.cache_modified = true;
 		self.cache_modified_bitmap.set(index, true);
+		Ok(())
 	}
 
-	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Vec<T> {
+	fn get_slice_of_data(&self, start_index: usize, len: usize) -> Result<Vec<T>, GLCoreError> {
 		let end_index = start_index + len;
-		self.cache[start_index..end_index].to_vec()
+		Ok(self.cache[start_index..end_index].to_vec())
 	}
 
-	fn set_slice_of_data(&mut self, start_index: usize, data: &[T]) {
+	fn set_slice_of_data(&mut self, start_index: usize, data: &[T]) -> Result<(), GLCoreError> {
 		let end_index = start_index + data.len();
 		self.cache_modified = true;
 		for i in start_index..end_index {
 			self.cache[i] = data[i - start_index];
 			self.cache_modified_bitmap.set(i, true);
 		}
+		Ok(())
 	}
 
 	fn set_target(&mut self, target: BufferTarget) {
 		self.buffer.set_target(target)
 	}
 
-	fn flush(&mut self) {
+	fn flush(&mut self) -> Result<(), GLCoreError> {
 		if !self.cache_modified {
-			return;
+			return Ok(());
 		}
 
 		const MAXIMUM_GAP: usize = 16;
@@ -503,28 +511,29 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecDynamic<T> {
    					if gap_length < MAXIMUM_GAP {
 						gap_length += 1;
 					} else {
-						self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index]);
+						self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index])?;
 						is_in = false;
 					}
 				}
 		}
 		if is_in {
-			self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index]);
+			self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index])?;
 		}
 
 		self.cache_modified = false;
+		Ok(())
 	}
 }
 
 impl<T: BufferVecItem> From<BufferVecStatic<T>> for BufferVecDynamic<T> {
 	fn from(val: BufferVecStatic<T>) -> Self {
-		BufferVecDynamic::new(val)
+		BufferVecDynamic::new(val).unwrap()
 	}
 }
 
 impl<T: BufferVecItem> From<BufferVecDynamic<T>> for BufferVecStatic<T> {
 	fn from(mut val: BufferVecDynamic<T>) -> Self {
-		val.flush();
+		val.flush().unwrap();
 		val.buffer
 	}
 }

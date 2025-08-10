@@ -44,6 +44,32 @@ struct DataGlType {
 	rows: u32,
 }
 
+/// The error of the pipeline
+#[derive(Debug, Clone)]
+pub enum PipelineError {
+	ShaderError(ShaderError),
+	FramebufferError(FramebufferError),
+	GLCoreError(GLCoreError),
+}
+
+impl From<ShaderError> for PipelineError {
+	fn from(val: ShaderError) -> Self {
+		Self::ShaderError(val)
+	}
+}
+
+impl From<FramebufferError> for PipelineError {
+	fn from(val: FramebufferError) -> Self {
+		Self::FramebufferError(val)
+	}
+}
+
+impl From<GLCoreError> for PipelineError {
+	fn from(val: GLCoreError) -> Self {
+		Self::GLCoreError(val)
+	}
+}
+
 /// The binding state of the pipeline
 #[derive(Debug)]
 pub struct PipelineBind<'a, V: VertexType, I: VertexType> {
@@ -80,9 +106,9 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 	}
 
 	/// Create a new pipeline
-	pub fn new(glcore: Rc<GLCore>, mesh: Rc<dyn GenericMeshWithMaterial>, shader: Rc<Shader>) -> Self {
+	pub fn new(glcore: Rc<GLCore>, mesh: Rc<dyn GenericMeshWithMaterial>, shader: Rc<Shader>) -> Result<Self, PipelineError> {
 		let mut name: u32 = 0;
-		glcore.glGenVertexArrays(1, &mut name as *mut u32);
+		glcore.glGenVertexArrays(1, &mut name as *mut u32)?;
 		let mut ret = Self {
 			glcore,
 			name,
@@ -93,32 +119,33 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 			_phantom_vertex_type: PhantomData,
 			_phantom_instance_type: PhantomData,
 		};
-		ret.establish_pipeline();
-		ret
+		ret.establish_pipeline()?;
+		Ok(ret)
 	}
 
 	/// Establish the pipeline by describing the vertex/instance data and the shader attrib inputs to the VAO.
-	fn establish_pipeline(&mut self) {
-		let program = self.shader.use_program();
-		let active_attribs = self.shader.get_active_attribs().unwrap();
-		let bind = self.bind();
+	fn establish_pipeline(&mut self) -> Result<(), PipelineError> {
+		let program = self.shader.use_program()?;
+		let active_attribs = self.shader.get_active_attribs()?;
+		let bind = self.bind()?;
 
-		let vb_bind = self.mesh.get_vertex_buffer().bind();
-		self.describe::<V>(&active_attribs, 0);
+		let vb_bind = self.mesh.get_vertex_buffer().bind()?;
+		self.describe::<V>(&active_attribs, 0)?;
 		vb_bind.unbind();
 
 		if let Some(ib) = self.mesh.get_instance_buffer() {
-			let ib_bind = ib.bind();
-			self.describe::<I>(&active_attribs, 1);
+			let ib_bind = ib.bind()?;
+			self.describe::<I>(&active_attribs, 1)?;
 			ib_bind.unbind();
 		}
 
 		bind.unbind();
 		program.unuse();
+		Ok(())
 	}
 
 	/// Describe a `VertexType` to a VAO
-	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, ShaderInputVarType>, v_a_d: u32) {
+	fn describe<T: VertexType>(&self, active_attribs: &BTreeMap<String, ShaderInputVarType>, v_a_d: u32) -> Result<(), PipelineError> {
 		let instance = T::default();
 		let stride = size_of::<T>();
 		let alignment = align_of::<T>();
@@ -131,7 +158,7 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 				if p_size != datainfo.size || p_rows != datainfo.rows {
 					panic!("The size and rows of the shader attrib is {p_size}x{p_rows}, but the given member of the vertex struct is {}x{}", datainfo.size, datainfo.rows);
 				}
-				let location = self.shader.get_attrib_location(field_name);
+				let location = self.shader.get_attrib_location(field_name)?;
 				if location >= 0 {
 					let location = location as u32;
 					for row in 0..datainfo.rows {
@@ -142,12 +169,12 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 							0
 						};
 						let ptr_param = cur_offset as *const c_void;
-						self.glcore.glEnableVertexAttribArray(location);
-						if attrib_type.is_float()	{self.glcore.glVertexAttribPointer (location, p_size as i32, attrib_type.get_base_type() as u32, do_normalize, stride as i32, ptr_param)} else
-						if attrib_type.is_integer()	{self.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
-						if attrib_type.is_double()	{self.glcore.glVertexAttribLPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
+						self.glcore.glEnableVertexAttribArray(location)?;
+						if attrib_type.is_float()	{self.glcore.glVertexAttribPointer (location, p_size as i32, attrib_type.get_base_type() as u32, do_normalize, stride as i32, ptr_param)?} else
+						if attrib_type.is_integer()	{self.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)?} else
+						if attrib_type.is_double()	{self.glcore.glVertexAttribLPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)?} else
 						{panic!("Unknown data type of the attrib `{} {field_name}`", attrib_type.get_type())}
-						self.glcore.glVertexAttribDivisor(location, v_a_d);
+						self.glcore.glVertexAttribDivisor(location, v_a_d)?;
 					}
 				} else {
 					eprintln!("Attrib `{typename} {field_name}` is active, but can't get its location.");
@@ -158,10 +185,11 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 			cur_offset += datainfo.size_in_bytes();
 			cur_offset = ((cur_offset - 1) / alignment + 1) * alignment;
 		}
+		Ok(())
 	}
 
 	/// Bind the pipeline for drawing
-	pub fn bind<'a>(&'a self) -> PipelineBind<'a, V, I> {
+	pub fn bind<'a>(&'a self) -> Result<PipelineBind<'a, V, I>, PipelineError> {
 		PipelineBind::new(self)
 	}
 
@@ -324,47 +352,45 @@ impl<V: VertexType, I: VertexType> Pipeline<V, I> {
 
 impl<'a, V: VertexType, I: VertexType> PipelineBind<'a, V, I> {
 	/// Create a binding state of the pipeline
-	fn new(pipeline: &'a Pipeline<V, I>) -> Self {
-		pipeline.glcore.glBindVertexArray(pipeline.name);
-		Self {
+	fn new(pipeline: &'a Pipeline<V, I>) -> Result<Self, PipelineError> {
+		pipeline.glcore.glBindVertexArray(pipeline.name)?;
+		Ok(Self {
 			pipeline,
-		}
+		})
 	}
 
 	/// Run the pipeline for drawing
-	pub fn draw(&self, fbo: Option<&Framebuffer>) {
+	pub fn draw(&self, fbo: Option<&Framebuffer>) -> Result<(), PipelineError>  {
 		let glcore = &self.pipeline.glcore;
-		let program = self.pipeline.shader.use_program();
-		let fbo_bind = fbo.map_or_else(
-		|| {
-			Framebuffer::default_bind(glcore);
-			None
-		},
-		|fbo| {
-			let bind = fbo.bind();
-			bind.setup(&self.pipeline.shader);
+		let program = self.pipeline.shader.use_program()?;
+		let fbo_bind = if let Some(fbo) = fbo {
+			let bind = fbo.bind()?;
+			bind.setup(&self.pipeline.shader)?;
 			Some(bind)
-		});
+		} else {
+			Framebuffer::default_bind(glcore)?;
+			None
+		};
 
 		if let Some(material) = self.pipeline.mesh.get_material() {
-			program.setup_material_uniforms(material, Some("i"), true);
+			program.setup_material_uniforms(material, Some("i"), true)?;
 		} else {
 			let default_material = MaterialLegacy::default();
-			program.setup_material_uniforms(&default_material, Some("i"), true);
+			program.setup_material_uniforms(&default_material, Some("i"), true)?;
 		}
 
 		let mesh = &self.pipeline.mesh;
 		let element_buffer = mesh.get_element_buffer();
-		let e_bind = mesh.bind_element_buffer();
+		let e_bind = mesh.bind_element_buffer()?;
 
 		if let Some(command_buffer) = mesh.get_command_buffer() {
 			assert_eq!(command_buffer.get_target(), BufferTarget::DrawIndirectBuffer);
-			let c_bind = command_buffer.bind();
+			let c_bind = command_buffer.bind()?;
 			let num_commands = mesh.get_command_count();
 			if let Some(_) = element_buffer {
-				glcore.glMultiDrawElementsIndirect(mesh.get_primitive() as u32, mesh.get_element_type() as u32, null(), num_commands as i32, size_of::<DrawElementsCommand>() as i32);
+				glcore.glMultiDrawElementsIndirect(mesh.get_primitive() as u32, mesh.get_element_type() as u32, null(), num_commands as i32, size_of::<DrawElementsCommand>() as i32)?;
 			} else {
-				glcore.glMultiDrawArraysIndirect(mesh.get_primitive() as u32, null(), num_commands as i32, size_of::<DrawArrayCommand>() as i32);
+				glcore.glMultiDrawArraysIndirect(mesh.get_primitive() as u32, null(), num_commands as i32, size_of::<DrawArrayCommand>() as i32)?;
 			}
 			c_bind.unbind();
 		} else {
@@ -372,20 +398,21 @@ impl<'a, V: VertexType, I: VertexType> PipelineBind<'a, V, I> {
 			if let Some(_) = mesh.get_instance_buffer() {
 				let num_instances = mesh.get_instance_count();
 				if let Some(_) = element_buffer {
-					glcore.glDrawElementsInstanced(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null(), num_instances as i32);
+					glcore.glDrawElementsInstanced(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null(), num_instances as i32)?;
 				} else {
-					glcore.glDrawArraysInstanced(mesh.get_primitive() as u32, 0, num_vertices as i32, num_instances as i32);
+					glcore.glDrawArraysInstanced(mesh.get_primitive() as u32, 0, num_vertices as i32, num_instances as i32)?;
 				}
 			} else if let Some(_) = element_buffer {
-				glcore.glDrawElements(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null());
+				glcore.glDrawElements(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null())?;
 			} else {
-				glcore.glDrawArrays(mesh.get_primitive() as u32, 0, num_vertices as i32);
+				glcore.glDrawArrays(mesh.get_primitive() as u32, 0, num_vertices as i32)?;
 			}
 		}
 
 		if let Some(b) = e_bind { b.unbind() }
 		program.unuse();
 		if let Some(b) = fbo_bind { b.unbind() }
+		Ok(())
 	}
 
 	/// Explicitly unbind the VAO pipeline
@@ -394,13 +421,13 @@ impl<'a, V: VertexType, I: VertexType> PipelineBind<'a, V, I> {
 
 impl<'a, V: VertexType, I: VertexType> Drop for PipelineBind<'a, V, I> {
 	fn drop(&mut self) {
-		self.pipeline.glcore.glBindVertexArray(0);
+		self.pipeline.glcore.glBindVertexArray(0).unwrap();
 	}
 }
 
 impl<V: VertexType, I: VertexType> Drop for Pipeline<V, I> {
 	fn drop(&mut self) {
-		self.glcore.glDeleteVertexArrays(1, &self.name as *const u32);
+		self.glcore.glDeleteVertexArrays(1, &self.name as *const u32).unwrap();
 	}
 }
 

@@ -84,11 +84,18 @@ where
 	}
 
 	/// Flush all of the buffers' caches to the GPU
-	pub fn flush(&mut self) {
-		self.vertex_buffer.flush();
-		self.element_buffer.as_mut().map(|b|b.flush());
-		self.instance_buffer.as_mut().map(|b|b.flush());
-		self.command_buffer.as_mut().map(|b|b.flush());
+	pub fn flush(&mut self) -> Result<(), GLCoreError> {
+		self.vertex_buffer.flush()?;
+		if let Some(element_buffer) = &mut self.element_buffer {
+			element_buffer.flush()?;
+		}
+		if let Some(instance_buffer) = &mut self.instance_buffer {
+			instance_buffer.flush()?;
+		}
+		if let Some(command_buffer) = &mut self.command_buffer {
+			command_buffer.flush()?;
+		}
+		Ok(())
 	}
 }
 
@@ -142,26 +149,38 @@ pub trait GenericMesh: Debug {
 	fn get_command_count(&self) -> usize;
 
 	/// Flush the cache if the mesh has a caching system
-	fn flush(&mut self) {}
+	fn flush(&mut self) -> Result<(), GLCoreError> {Ok(())}
 
 	/// Bind the vertex buffer
-	fn bind_vertex_buffer<'a>(&'a self) -> BufferBind<'a> {
+	fn bind_vertex_buffer<'a>(&'a self) -> Result<BufferBind<'a>, GLCoreError> {
 		self.get_vertex_buffer().bind_to(BufferTarget::ArrayBuffer)
 	}
 
 	/// Bind the element buffer
-	fn bind_element_buffer<'a>(&'a self) -> Option<BufferBind<'a>> {
-		self.get_element_buffer().map(|b|b.bind_to(BufferTarget::ElementArrayBuffer))
+	fn bind_element_buffer<'a>(&'a self) -> Result<Option<BufferBind<'a>>, GLCoreError> {
+		if let Some(element_buffer) = self.get_element_buffer() {
+			Ok(Some(element_buffer.bind_to(BufferTarget::ElementArrayBuffer)?))
+		} else {
+			Ok(None)
+		}
 	}
 
 	/// Bind the instance buffer
-	fn bind_instance_buffer<'a>(&'a self) -> Option<BufferBind<'a>> {
-		self.get_instance_buffer().map(|b|b.bind_to(BufferTarget::ArrayBuffer))
+	fn bind_instance_buffer<'a>(&'a self) -> Result<Option<BufferBind<'a>>, GLCoreError> {
+		if let Some(instance_buffer) = self.get_instance_buffer() {
+			Ok(Some(instance_buffer.bind_to(BufferTarget::ArrayBuffer)?))
+		} else {
+			Ok(None)
+		}
 	}
 
 	/// Bind the command buffer
-	fn bind_command_buffer<'a>(&'a self) -> Option<BufferBind<'a>> {
-		self.get_command_buffer().map(|b|b.bind_to(BufferTarget::DrawIndirectBuffer))
+	fn bind_command_buffer<'a>(&'a self) -> Result<Option<BufferBind<'a>>, GLCoreError> {
+		if let Some(command_buffer) = self.get_command_buffer() {
+			Ok(Some(command_buffer.bind_to(BufferTarget::DrawIndirectBuffer)?))
+		} else {
+			Ok(None)
+		}
 	}
 }
 
@@ -252,8 +271,8 @@ where
 		}
 	}
 
-	fn flush(&mut self) {
-		Mesh::flush(self);
+	fn flush(&mut self) -> Result<(), GLCoreError> {
+		Mesh::flush(self)
 	}
 }
 

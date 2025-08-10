@@ -81,19 +81,19 @@ impl Buffer {
 	}
 
 	/// Create a new OpenGL buffer with the specified size and data. The data could be `NULL`, indicating no initialization to the buffer.
-	pub fn new(glcore: Rc<GLCore>, target: BufferTarget, size: usize, usage: BufferUsage, data_ptr: *const c_void) -> Self {
+	pub fn new(glcore: Rc<GLCore>, target: BufferTarget, size: usize, usage: BufferUsage, data_ptr: *const c_void) -> Result<Self, GLCoreError> {
 		let mut name: u32 = 0;
-		glcore.glGenBuffers(1, &mut name as *mut u32);
-		glcore.glBindBuffer(target as u32, name);
-		glcore.glBufferData(target as u32, size, data_ptr, usage as u32);
-		glcore.glBindBuffer(target as u32, 0);
-		Self {
+		glcore.glGenBuffers(1, &mut name as *mut u32)?;
+		glcore.glBindBuffer(target as u32, name)?;
+		glcore.glBufferData(target as u32, size, data_ptr, usage as u32)?;
+		glcore.glBindBuffer(target as u32, 0)?;
+		Ok(Self {
 			glcore,
 			name,
 			usage,
 			target,
 			size,
-		}
+		})
 	}
 
 	/// Get the size of the buffer in bytes
@@ -112,25 +112,26 @@ impl Buffer {
 	}
 
 	/// Resize the buffer. Actually, this operation will reallocate the buffer and copy the data.
-	pub fn resize<T: Copy + Sized>(&mut self, new_len: usize, value: T) {
+	pub fn resize<T: Copy + Sized>(&mut self, new_len: usize, value: T) -> Result<(), GLCoreError> {
 		let new_len = min(self.size, new_len);
 		let data = vec![value; new_len / size_of::<T>()];
 		let mut name: u32 = 0;
-		self.glcore.glGenBuffers(1, &mut name as *mut u32);
-		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, self.name);
-		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, name);
+		self.glcore.glGenBuffers(1, &mut name as *mut u32)?;
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, self.name)?;
+		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, name)?;
 		self.glcore.glBufferData(BufferTarget::CopyWriteBuffer as u32, new_len,
 			if new_len > self.size {
 				data.as_ptr() as *const c_void
 			} else {
 				std::ptr::null()
 			},
-			self.usage as u32);
-		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, BufferTarget::CopyWriteBuffer as u32, 0, 0, new_len);
-		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, 0);
-		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, 0);
-		self.glcore.glDeleteBuffers(1, &self.name as *const u32);
+			self.usage as u32)?;
+		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, BufferTarget::CopyWriteBuffer as u32, 0, 0, new_len)?;
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, 0)?;
+		self.glcore.glBindBuffer(BufferTarget::CopyWriteBuffer as u32, 0)?;
+		self.glcore.glDeleteBuffers(1, &self.name as *const u32)?;
 		self.name = name;
+		Ok(())
 	}
 
 	/// Set the default binding target
@@ -139,12 +140,12 @@ impl Buffer {
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind<'a>(&'a self) -> BufferBind<'a> {
+	pub fn bind<'a>(&'a self) -> Result<BufferBind<'a>, GLCoreError> {
 		BufferBind::new(self, self.target)
 	}
 
 	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state.
-	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> BufferBind<'a> {
+	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> Result<BufferBind<'a>, GLCoreError> {
 		BufferBind::new(&*self, target)
 	}
 }
@@ -152,20 +153,20 @@ impl Buffer {
 impl Drop for Buffer {
 	/// Delete the OpenGL buffer on `drop()` called.
 	fn drop(&mut self) {
-		self.glcore.glDeleteBuffers(1, &self.name as *const u32);
+		self.glcore.glDeleteBuffers(1, &self.name as *const u32).unwrap();
 	}
 }
 
 impl Clone for Buffer {
 	fn clone(&self) -> Self {
 		let mut name: u32 = 0;
-		self.glcore.glGenBuffers(1, &mut name as *mut u32);
-		self.glcore.glBindBuffer(self.target as u32, name);
-		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, self.name);
-		self.glcore.glBufferData(BufferTarget::CopyWriteBuffer as u32, self.size, std::ptr::null(), self.usage as u32);
-		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, self.target as u32, 0, 0, self.size);
-		self.glcore.glBindBuffer(self.target as u32, 0);
-		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, 0);
+		self.glcore.glGenBuffers(1, &mut name as *mut u32).unwrap();
+		self.glcore.glBindBuffer(self.target as u32, name).unwrap();
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, self.name).unwrap();
+		self.glcore.glBufferData(BufferTarget::CopyWriteBuffer as u32, self.size, std::ptr::null(), self.usage as u32).unwrap();
+		self.glcore.glCopyBufferSubData(BufferTarget::CopyReadBuffer as u32, self.target as u32, 0, 0, self.size).unwrap();
+		self.glcore.glBindBuffer(self.target as u32, 0).unwrap();
+		self.glcore.glBindBuffer(BufferTarget::CopyReadBuffer as u32, 0).unwrap();
 		Self {
 			glcore: self.glcore.clone(),
 			name,
@@ -189,24 +190,24 @@ impl Debug for Buffer {
 
 impl<'a> BufferBind<'a> {
 	/// Bind the buffer to the target
-	fn new(buffer: &'a Buffer, target: BufferTarget) -> Self {
-		buffer.glcore.glBindBuffer(target as u32, buffer.name);
-		Self {
+	fn new(buffer: &'a Buffer, target: BufferTarget) -> Result<Self, GLCoreError> {
+		buffer.glcore.glBindBuffer(target as u32, buffer.name)?;
+		Ok(Self {
 			buffer,
 			target,
-		}
+		})
 	}
 
 	/// Unbind the buffer
 	pub fn unbind(self) {} // Unbind by owning it in the function and `drop()`
 
 	/// Create a `BufferMapping` to use the RAII system to manage the mapping state.
-	pub fn map(&self, access: MapAccess) -> (BufferMapping<'a>, *mut c_void) {
+	pub fn map(&self, access: MapAccess) -> Result<(BufferMapping<'a>, *mut c_void), GLCoreError> {
 		BufferMapping::new(self.buffer, self.target, access)
 	}
 
 	/// Create a `BufferMapping` to use the RAII system to manage the mapping state, with partially mapped range.
-	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> (BufferMapping<'a>, *mut c_void) {
+	pub fn map_ranged(&self, offset: usize, length: usize, access: MapAccess) -> Result<(BufferMapping<'a>, *mut c_void), GLCoreError> {
 		BufferMapping::new_ranged(self.buffer, self.target, offset, length, access)
 	}
 
@@ -219,31 +220,31 @@ impl<'a> BufferBind<'a> {
 impl<'a> Drop for BufferBind<'a> {
 	/// Unbind if dropped
 	fn drop(&mut self) {
-		self.buffer.glcore.glBindBuffer(self.target as u32, 0);
+		self.buffer.glcore.glBindBuffer(self.target as u32, 0).unwrap();
 	}
 }
 
 impl<'a> BufferMapping<'a> {
 	/// Map to the buffer to modify or retrieve the data of the buffer
-	fn new(buffer: &'a Buffer, target: BufferTarget, access: MapAccess) -> (Self, *mut c_void) {
-		let address = buffer.glcore.glMapBuffer(target as u32, access as u32);
-		(Self {
+	fn new(buffer: &'a Buffer, target: BufferTarget, access: MapAccess) -> Result<(Self, *mut c_void), GLCoreError> {
+		let address = buffer.glcore.glMapBuffer(target as u32, access as u32)?;
+		Ok((Self {
 			buffer,
 			target,
 			access,
 			address,
-		}, address)
+		}, address))
 	}
 
 	/// Map to the buffer partially to modify or retrieve the data of the buffer
-	fn new_ranged(buffer: &'a Buffer, target: BufferTarget, offset: usize, length: usize, access: MapAccess) -> (Self, *mut c_void) {
-		let address = buffer.glcore.glMapBufferRange(target as u32, offset, length, access as u32);
-		(Self {
+	fn new_ranged(buffer: &'a Buffer, target: BufferTarget, offset: usize, length: usize, access: MapAccess) -> Result<(Self, *mut c_void), GLCoreError> {
+		let address = buffer.glcore.glMapBufferRange(target as u32, offset, length, access as u32)?;
+		Ok((Self {
 			buffer,
 			target,
 			access,
 			address,
-		}, address)
+		}, address))
 	}
 
 	/// Unmap the buffer
@@ -268,7 +269,7 @@ impl<'a> BufferMapping<'a> {
 impl<'a> Drop for BufferMapping<'a> {
 	/// Unmap the buffer when dropped
 	fn drop(&mut self) {
-		self.buffer.glcore.glUnmapBuffer(self.target as u32);
+		self.buffer.glcore.glUnmapBuffer(self.target as u32).unwrap();
 	}
 }
 

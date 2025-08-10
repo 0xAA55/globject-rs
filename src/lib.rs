@@ -80,6 +80,9 @@ mod tests {
 		GLFWInitErr,
 		GLFWCreateWindowFailed,
 		GLFWErr(glfw::Error),
+		GLCoreError(GLCoreError),
+		ShaderError(ShaderError),
+		PipelineError(PipelineError),
 	}
 
 	#[derive(Debug)]
@@ -98,8 +101,26 @@ mod tests {
 		glfw: Glfw,
 	}
 
+	impl From<GLCoreError> for AppError {
+		fn from(val: GLCoreError) -> Self {
+			Self::GLCoreError(val)
+		}
+	}
+
+	impl From<ShaderError> for AppError {
+		fn from(val: ShaderError) -> Self {
+			Self::ShaderError(val)
+		}
+	}
+
+	impl From<PipelineError> for AppError {
+		fn from(val: PipelineError) -> Self {
+			Self::PipelineError(val)
+		}
+	}
+
 	impl Renderer {
-		fn new(glcore: Rc<GLCore>) -> Self {
+		fn new(glcore: Rc<GLCore>) -> Result<Self, AppError> {
 			let vertices = [
 				MyVertex{position: Vec2::new(-1.0, -1.0)},
 				MyVertex{position: Vec2::new( 1.0, -1.0)},
@@ -110,12 +131,12 @@ mod tests {
 				0u8, 1u8, 2u8,
 				1u8, 3u8, 2u8,
 			];
-			let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void);
+			let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void)?;
 			let mut vertex_buffer = BufferVecStatic::<MyVertex>::new(glcore.clone(), vertex_buffer);
-			vertex_buffer.resize(4, MyVertex::default());
-			let element_buffer = Buffer::new(glcore.clone(), BufferTarget::ElementArrayBuffer, size_of_val(&elements), BufferUsage::StaticDraw, elements.as_ptr() as *const c_void);
+			vertex_buffer.resize(4, MyVertex::default())?;
+			let element_buffer = Buffer::new(glcore.clone(), BufferTarget::ElementArrayBuffer, size_of_val(&elements), BufferUsage::StaticDraw, elements.as_ptr() as *const c_void)?;
 			let mut element_buffer = BufferVecStatic::<u8>::new(glcore.clone(), element_buffer);
-			element_buffer.resize(6, 0u8);
+			element_buffer.resize(6, 0u8)?;
 			let mesh = StaticMesh::<MyVertex, u8, UnusedType, UnusedType>::new(PrimitiveMode::Triangles, vertex_buffer, Some(element_buffer), None, None);
 			let mesh = Rc::new(MeshWithMaterial::new(mesh, Rc::new(MaterialLegacy::default())));
 			let mesh: Rc<dyn GenericMeshWithMaterial> = mesh;
@@ -314,29 +335,30 @@ void main() {
 	Color = vec4(c, 1.0);
 }
 				")
-			).unwrap());
-			let pipeline = Rc::new(Pipeline::new(glcore.clone(), mesh.clone(), shader.clone()));
-			Self {
+			)?);
+			let pipeline = Rc::new(Pipeline::new(glcore.clone(), mesh.clone(), shader.clone())?);
+			Ok(Self {
 				mesh,
 				shader,
 				pipeline,
-			}
+			})
 		}
 
-		fn render(&self, glcore: &GLCore, frame_time: f64, width: u32, height: u32) {
-			glcore.glViewport(0, 0, width as i32, height as i32);
-			glcore.glClearColor(0.0, 0.3, 0.5, 1.0);
-			glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		fn render(&self, glcore: &GLCore, frame_time: f64, width: u32, height: u32) -> Result<(), AppError> {
+			glcore.glViewport(0, 0, width as i32, height as i32)?;
+			glcore.glClearColor(0.0, 0.3, 0.5, 1.0)?;
+			glcore.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)?;
 
-			let shader = self.shader.use_program();
+			let shader = self.shader.use_program()?;
 			let time = frame_time as f32;
 			let _ = shader.set_uniform("iResolution", &Vec3::new(width as f32, height as f32, 0.0));
 			let _ = shader.set_uniform("iTime", &time);
 			shader.unuse();
 
-			let p_bind = self.pipeline.bind();
-			p_bind.draw(None);
+			let p_bind = self.pipeline.bind()?;
+			p_bind.draw(None)?;
 			p_bind.unbind();
+			Ok(())
 		}
 	}
 
@@ -350,8 +372,8 @@ void main() {
 			window.set_key_polling(true);
 			window.make_current();
 			glfw.set_swap_interval(SwapInterval::Adaptive);
-			let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name)));
-			let renderer = Some(Renderer::new(glcore.clone()));
+			let glcore = Rc::new(GLCore::new(|proc_name|window.get_proc_address(proc_name))?);
+			let renderer = Some(Renderer::new(glcore.clone())?);
 			Ok(Self {
 				renderer,
 				glcore,
@@ -368,7 +390,7 @@ void main() {
 
 				if let Some(renderer) = self.renderer.as_ref() {
 					let (width, height) = self.window.get_framebuffer_size();
-					renderer.render(&self.glcore, time_cur_frame, width as u32, height as u32);
+					renderer.render(&self.glcore, time_cur_frame, width as u32, height as u32).unwrap();
 					self.window.swap_buffers();
 				}
 

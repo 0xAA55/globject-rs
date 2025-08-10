@@ -321,19 +321,56 @@ impl From<image::ImageError> for LoadImageError {
 	}
 }
 
+#[derive(Debug)]
+pub enum TextureError {
+	LoadImageError(LoadImageError),
+	GLCoreError(GLCoreError),
+}
+
+impl From<LoadImageError> for TextureError {
+	fn from(val: LoadImageError) -> Self {
+		Self::LoadImageError(val)
+	}
+}
+
+impl From<GLCoreError> for TextureError {
+	fn from(val: GLCoreError) -> Self {
+		Self::GLCoreError(val)
+	}
+}
+
+
+impl From<std::io::Error> for TextureError {
+	fn from(err: std::io::Error) -> Self {
+		Self::LoadImageError(LoadImageError::IOError(err))
+	}
+}
+
+impl From<turbojpeg::Error> for TextureError {
+	fn from(err: turbojpeg::Error) -> Self {
+		Self::LoadImageError(LoadImageError::TurboJpegError(err))
+	}
+}
+
+impl From<image::ImageError> for TextureError {
+	fn from(err: image::ImageError) -> Self {
+		Self::LoadImageError(LoadImageError::ImageError(err))
+	}
+}
+
 impl TextureFormat {
 	/// Get how many bits that composed of a pixel. The implementation is just to ask anything from OpenGL
-	pub fn bits_of_pixel(&self, glcore: &GLCore, target: TextureTarget) -> usize {
+	pub fn bits_of_pixel(&self, glcore: &GLCore, target: TextureTarget) -> Result<usize, TextureError> {
 		let target = target as u32;
 		let mut data: i32 = 0;
 		let mut size: usize = 0;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_DEPTH_SIZE, &mut data as *mut _);		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_STENCIL_SIZE, &mut data as *mut _);	size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_RED_SIZE, &mut data as *mut _);		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_GREEN_SIZE, &mut data as *mut _);		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BLUE_SIZE, &mut data as *mut _);		size += data as usize;
-		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_ALPHA_SIZE, &mut data as *mut _);		size += data as usize;
-		size
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_DEPTH_SIZE, &mut data as *mut _)?;	size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_STENCIL_SIZE, &mut data as *mut _)?;	size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_RED_SIZE, &mut data as *mut _)?;		size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_GREEN_SIZE, &mut data as *mut _)?;	size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BLUE_SIZE, &mut data as *mut _)?;		size += data as usize;
+		glcore.glGetTexLevelParameteriv(target, 0, GL_TEXTURE_ALPHA_SIZE, &mut data as *mut _)?;	size += data as usize;
+		Ok(size)
 	}
 
 	/// Create a `TextureFormat` from the channel type and the component type, returns `None` if the combination couldn't have its corresponding format
@@ -456,8 +493,8 @@ pub trait GenericPixelBuffer: Debug {
 	}
 
 	/// Create a `BufferBind` to use the RAII system to manage the binding state
-	fn bind<'a>(&'a self) -> BufferBind<'a> {
-		self.get_buffer().bind()
+	fn bind<'a>(&'a self) -> Result<BufferBind<'a>, TextureError> {
+		Ok(self.get_buffer().bind()?)
 	}
 }
 
@@ -474,19 +511,19 @@ where
 			channel_type: ChannelType,
 			component_type: ComponentType,
 			initial_data: Option<*const c_void>,
-		) -> Self {
+		) -> Result<Self, TextureError> {
 		let pixel_size = size_of_pixel(channel_type, component_type);
 		let pitch = ((width as usize * pixel_size - 1) / 4 + 1) * 4;
 		let pitch_wh = pitch * height as usize;
 		let buffer = match initial_data {
-			Some(initial_data) => Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, initial_data),
+			Some(initial_data) => Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, initial_data)?,
 			None => {
 				let empty_data = vec![0u8; size_in_bytes];
-				Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, empty_data.as_ptr() as *const c_void)
+				Buffer::new(glcore.clone(), BufferTarget::PixelUnpackBuffer, size_in_bytes, BufferUsage::StreamDraw, empty_data.as_ptr() as *const c_void)?
 			}
 		};
 		let buffer = B::from(buffer);
-		Self {
+		Ok(Self {
 			buffer,
 			pixel_size,
 			width,
@@ -497,11 +534,11 @@ where
 			channel_type,
 			component_type,
 			_pixel_type: PhantomData,
-		}
+		})
 	}
 
 	/// Create from an `ImageBuffer`
-	pub fn from_image<P: Pixel>(glcore: Rc<GLCore>, img: &ImageBuffer<P, Vec<P::Subpixel>>) -> Self {
+	pub fn from_image<P: Pixel>(glcore: Rc<GLCore>, img: &ImageBuffer<P, Vec<P::Subpixel>>) -> Result<Self, TextureError> {
 		let container = img.as_raw();
 		let mut channel_type = ChannelType::Rgb;
 		let mut component_type = ComponentType::U8;
@@ -510,27 +547,27 @@ where
 	}
 
 	/// Create from a file
-	pub fn from_file(glcore: Rc<GLCore>, path: &Path) -> Result<Self, LoadImageError> {
+	pub fn from_file(glcore: Rc<GLCore>, path: &Path) -> Result<Self, TextureError> {
 		let ext = path.extension().map_or_else(|| String::new(), |ext| OsStr::to_str(ext).unwrap().to_lowercase());
 		match &ext[..] {
 			"jpg" | "jpeg" => {
 				let image_data = std::fs::read(path)?;
 				let img: RgbImage = turbojpeg::decompress_image(&image_data)?;
-				Ok(Self::from_image(glcore, &img))
+				Ok(Self::from_image(glcore, &img)?)
 			}
 			_ => {
 				match ImageReader::open(path)?.decode()? {
-					DynamicImage::ImageLuma8(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageLumaA8(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageRgb8(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageRgba8(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageLuma16(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageLumaA16(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageRgb16(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageRgba16(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageRgb32F(img) => Ok(Self::from_image(glcore, &img)),
-					DynamicImage::ImageRgba32F(img) => Ok(Self::from_image(glcore, &img)),
-					_ => Err(LoadImageError::UnsupportedImageType(format!("Unsupported image type when loading pixel buffer from {path:?}"))),
+					DynamicImage::ImageLuma8(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageLumaA8(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageRgb8(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageRgba8(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageLuma16(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageLumaA16(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageRgb16(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageRgba16(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageRgb32F(img) => Ok(Self::from_image(glcore, &img)?),
+					DynamicImage::ImageRgba32F(img) => Ok(Self::from_image(glcore, &img)?),
+					_ => Err(LoadImageError::UnsupportedImageType(format!("Unsupported image type when loading pixel buffer from {path:?}")))?,
 				}
 			}
 		}
@@ -590,125 +627,134 @@ pub trait GenericTexture: Debug {
 	fn get_pixel_buffer(&self) -> Option<&dyn GenericPixelBuffer>;
 
 	/// Create the PBO if not been created earlier
-	fn create_pixel_buffer(&mut self, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, initial_data: Option<*const c_void>);
+	fn create_pixel_buffer(&mut self, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, initial_data: Option<*const c_void>) -> Result<(), TextureError>;
 
 	/// Discard the PBO if not necessarily need it
 	fn drop_pixel_buffer(&mut self);
 
 	/// Map the pixel buffer for the specified access
-	fn map_buffer<'a>(&'a mut self, access: MapAccess) -> Option<(BufferBind<'a>, BufferMapping<'a>, *mut c_void)> {
-		self.get_pixel_buffer().as_ref().map(|b|{
-			let bind = b.bind();
-			let (mapping, address) = bind.map(access);
-			(bind, mapping, address)
-		})
+	fn map_buffer<'a>(&'a mut self, access: MapAccess) -> Result<Option<(BufferBind<'a>, BufferMapping<'a>, *mut c_void)>, TextureError> {
+		if let Some(b) = self.get_pixel_buffer().as_ref() {
+			let bind = b.bind()?;
+			let (mapping, address) = bind.map(access)?;
+			Ok(Some((bind, mapping, address)))
+		} else {
+			Ok(None)
+		}
 	}
 
 	/// Bind the texture, using the RAII system to manage the binding state
-	fn bind<'a>(&'a self) -> TextureBind<'a>;
+	fn bind<'a>(&'a self) -> Result<TextureBind<'a>, TextureError>;
 
 	/// Bind a cubemap face, using the RAII system to manage the binding state
-	fn bind_face<'a>(&'a self, face: CubeMapFaces) -> TextureBind<'a>;
+	fn bind_face<'a>(&'a self, face: CubeMapFaces) -> Result<TextureBind<'a>, TextureError>;
 
 	/// Retrieve the pixels from the texture to the specified data pointer regardless of is currently using a PBO or not
-	unsafe fn download_texture(&self, data: *mut c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType) {
+	unsafe fn download_texture(&self, data: *mut c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType) -> Result<(), TextureError> {
 		let glcore = self.get_glcore();
 		let pointer = data as *mut u8;
 		match self.get_dim() {
 			TextureDimension::Tex1d => {
-				let bind_tex = self.bind();
-				glcore.glGetTexImage(TextureTarget::Tex1d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
+				let bind_tex = self.bind()?;
+				glcore.glGetTexImage(TextureTarget::Tex1d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void)?;
 				bind_tex.unbind();
 			}
 			TextureDimension::Tex2d => {
-				let bind_tex = self.bind();
-				glcore.glGetTexImage(TextureTarget::Tex2d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
+				let bind_tex = self.bind()?;
+				glcore.glGetTexImage(TextureTarget::Tex2d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void)?;
 				bind_tex.unbind();
 			}
 			TextureDimension::Tex3d => {
-				let bind_tex = self.bind();
-				glcore.glGetTexImage(TextureTarget::Tex3d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
+				let bind_tex = self.bind()?;
+				glcore.glGetTexImage(TextureTarget::Tex3d as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void)?;
 				bind_tex.unbind();
 			}
 			TextureDimension::TexCube => {
 				for (i, target) in CUBE_FACE_TARGETS.iter().enumerate() {
 					let target = *target;
-					let bind_tex = self.bind_face(target);
+					let bind_tex = self.bind_face(target)?;
 					let pointer = pointer.wrapping_add(i * self.get_bytes_of_face());
-					glcore.glGetTexImage(target as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void);
+					glcore.glGetTexImage(target as u32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *mut c_void)?;
 					bind_tex.unbind();
 				}
 			}
 		}
+		Ok(())
 	}
 
 	/// Load the texture with the specified data pointer regardless of is currently using a PBO or not
-	unsafe fn upload_texture(&self, data: *const c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, regen_mipmap: bool) {
+	unsafe fn upload_texture(&self, data: *const c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, regen_mipmap: bool) -> Result<(), TextureError> {
 		let glcore = self.get_glcore();
 		let pointer = data as *const u8;
 		match self.get_dim() {
 			TextureDimension::Tex1d => {
-				let bind_tex = self.bind();
-				glcore.glTexImage1D(TextureTarget::Tex1d as u32, 0, self.get_format() as i32, self.get_width() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
+				let bind_tex = self.bind()?;
+				glcore.glTexImage1D(TextureTarget::Tex1d as u32, 0, self.get_format() as i32, self.get_width() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void)?;
 				if regen_mipmap && self.has_mipmap() {
-					glcore.glGenerateMipmap(TextureTarget::Tex1d as u32);
+					glcore.glGenerateMipmap(TextureTarget::Tex1d as u32)?;
 				}
 				bind_tex.unbind();
+				Ok(())
 			}
 			TextureDimension::Tex2d => {
-				let bind_tex = self.bind();
-				glcore.glTexImage2D(TextureTarget::Tex2d as u32, 0, self.get_format() as i32, self.get_width() as i32, self.get_height() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
+				let bind_tex = self.bind()?;
+				glcore.glTexImage2D(TextureTarget::Tex2d as u32, 0, self.get_format() as i32, self.get_width() as i32, self.get_height() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void)?;
 				if regen_mipmap && self.has_mipmap() {
-					glcore.glGenerateMipmap(TextureTarget::Tex2d as u32);
+					glcore.glGenerateMipmap(TextureTarget::Tex2d as u32)?;
 				}
 				bind_tex.unbind();
+				Ok(())
 			}
 			TextureDimension::Tex3d => {
-				let bind_tex = self.bind();
-				glcore.glTexImage3D(TextureTarget::Tex3d as u32, 0, self.get_format() as i32, self.get_width() as i32, self.get_height() as i32, self.get_depth() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
+				let bind_tex = self.bind()?;
+				glcore.glTexImage3D(TextureTarget::Tex3d as u32, 0, self.get_format() as i32, self.get_width() as i32, self.get_height() as i32, self.get_depth() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void)?;
 				if regen_mipmap && self.has_mipmap() {
-					glcore.glGenerateMipmap(TextureTarget::Tex3d as u32);
+					glcore.glGenerateMipmap(TextureTarget::Tex3d as u32)?;
 				}
 				bind_tex.unbind();
+				Ok(())
 			}
 			TextureDimension::TexCube => {
 				for (i, target) in CUBE_FACE_TARGETS.iter().enumerate() {
 					let target = *target;
-					let bind_tex = self.bind_face(target);
+					let bind_tex = self.bind_face(target)?;
 					let pointer = pointer.wrapping_add(i * self.get_bytes_of_face());
-					glcore.glTexImage2D(target as u32, 0, self.get_format() as i32, self.get_width() as i32, self.get_height() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void);
+					glcore.glTexImage2D(target as u32, 0, self.get_format() as i32, self.get_width() as i32, self.get_height() as i32, 0, buffer_channel_type as u32, buffer_component_type as u32, pointer as *const c_void)?;
 					if regen_mipmap && self.has_mipmap() {
-						glcore.glGenerateMipmap(target as u32);
+						glcore.glGenerateMipmap(target as u32)?;
 					}
 					bind_tex.unbind();
 				}
+				Ok(())
 			}
 		}
 	}
 
 	/// Read the pixels from the texture to the pixel buffer
-	fn pack_pixel_buffer(&self) {
+	fn pack_pixel_buffer(&self) -> Result<(), TextureError> {
 		let pixel_buffer = self.get_pixel_buffer().unwrap();
 		let buffer_channel_type = pixel_buffer.get_channel_type();
 		let buffer_component_type = pixel_buffer.get_component_type();
-		let bind_pbo = pixel_buffer.bind();
-		unsafe {self.download_texture(std::ptr::null_mut::<c_void>(), buffer_channel_type, buffer_component_type)};
+		let bind_pbo = pixel_buffer.bind()?;
+		unsafe {self.download_texture(std::ptr::null_mut::<c_void>(), buffer_channel_type, buffer_component_type)?};
 		bind_pbo.unbind();
+		Ok(())
 	}
 
 	/// Apply the change to the pixel buffer of the texture
-	fn unpack_pixel_buffer(&self, regen_mipmap: bool) {
+	fn unpack_pixel_buffer(&self, regen_mipmap: bool) -> Result<(), TextureError> {
 		let pixel_buffer = self.get_pixel_buffer().unwrap();
 		let buffer_channel_type = pixel_buffer.get_channel_type();
 		let buffer_component_type = pixel_buffer.get_component_type();
-		let bind_pbo = pixel_buffer.bind();
-		unsafe {self.upload_texture(std::ptr::null(), buffer_channel_type, buffer_component_type, regen_mipmap)};
+		let bind_pbo = pixel_buffer.bind()?;
+		unsafe {self.upload_texture(std::ptr::null(), buffer_channel_type, buffer_component_type, regen_mipmap)?};
 		bind_pbo.unbind();
+		Ok(())
 	}
 
 	/// Set the active texture unit
-	fn set_active_unit(&self, unit: u32) {
-		self.get_glcore().glActiveTexture(GL_TEXTURE0 + unit)
+	fn set_active_unit(&self, unit: u32) -> Result<(), TextureError> {
+		Ok(self.get_glcore().glActiveTexture(GL_TEXTURE0 + unit)?)
 	}
 }
 
@@ -730,7 +776,7 @@ where
 			wrapping_r: TextureWrapping,
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
-		) -> TextureTarget
+		) -> Result<TextureTarget, TextureError>
 	{
 		let target;
 		match dim {
@@ -756,25 +802,25 @@ where
 				*size_mod = 6;
 			}
 		}
-		glcore.glBindTexture(target as u32, name);
+		glcore.glBindTexture(target as u32, name)?;
 		match dim {
 			TextureDimension::Tex1d => {
-				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_S, wrapping_s as i32);
+				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_S, wrapping_s as i32)?;
 			}
 			TextureDimension::Tex2d => {
-				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_S, wrapping_s as i32);
-				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_T, wrapping_t as i32);
+				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_S, wrapping_s as i32)?;
+				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_T, wrapping_t as i32)?;
 			}
 			TextureDimension::Tex3d => {
-				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_S, wrapping_s as i32);
-				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_T, wrapping_t as i32);
-				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_R, wrapping_r as i32);
+				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_S, wrapping_s as i32)?;
+				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_T, wrapping_t as i32)?;
+				glcore.glTexParameteri(target as u32, GL_TEXTURE_WRAP_R, wrapping_r as i32)?;
 			}
 			_ => {}
 		}
-		glcore.glTexParameteri(target as u32, GL_TEXTURE_MAG_FILTER, mag_filter as i32);
-		glcore.glTexParameteri(target as u32, GL_TEXTURE_MIN_FILTER, min_filter as i32);
-		target
+		glcore.glTexParameteri(target as u32, GL_TEXTURE_MAG_FILTER, mag_filter as i32)?;
+		glcore.glTexParameteri(target as u32, GL_TEXTURE_MIN_FILTER, min_filter as i32)?;
+		Ok(target)
 	}
 
 	/// Create an unallocated texture for further initialization
@@ -791,16 +837,16 @@ where
 			has_mipmap: bool,
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
-		) -> Self {
+		) -> Result<Self, TextureError> {
 		let mut name: u32 = 0;
-		glcore.glGenTextures(1, &mut name as *mut _);
+		glcore.glGenTextures(1, &mut name as *mut _)?;
 		let mut size_mod = 1;
-		let target = Self::set_texture_params(glcore.clone(), name, dim, width, &mut height, &mut depth, &mut size_mod, wrapping_s, wrapping_t, wrapping_r, mag_filter, min_filter);
-		let pixel_bits = format.bits_of_pixel(glcore.as_ref(), target);
+		let target = Self::set_texture_params(glcore.clone(), name, dim, width, &mut height, &mut depth, &mut size_mod, wrapping_s, wrapping_t, wrapping_r, mag_filter, min_filter)?;
+		let pixel_bits = format.bits_of_pixel(glcore.as_ref(), target)?;
 		let pitch = ((pixel_bits - 1) / 32 + 1) * 4;
 		let bytes_of_face = pitch * height as usize * depth as usize;
 		let bytes_of_texture = bytes_of_face * size_mod;
-		Self {
+		Ok(Self {
 			glcore,
 			name,
 			dim,
@@ -815,7 +861,7 @@ where
 			bytes_of_face,
 			pixel_buffer: None,
 			_pixel_type: PhantomData,
-		}
+		})
 	}
 
 	/// Create from a pixel buffer
@@ -833,10 +879,10 @@ where
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 			pixel_buffer: PixelBuffer<B, BP>,
-		) -> Self {
-		let ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter);
-		unsafe {ret.upload_texture(null(), pixel_buffer.get_channel_type(), pixel_buffer.get_component_type(), has_mipmap)};
-		ret
+		) -> Result<Self, TextureError> {
+		let ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter)?;
+		unsafe {ret.upload_texture(null(), pixel_buffer.get_channel_type(), pixel_buffer.get_component_type(), has_mipmap)?};
+		Ok(ret)
 	}
 
 	/// Create without pixel buffer
@@ -856,19 +902,19 @@ where
 			buffer_channel_type: ChannelType,
 			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
-		) -> Self {
-		let mut ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter);
+		) -> Result<Self, TextureError> {
+		let mut ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter)?;
 		if buffering {
-			ret.create_pixel_buffer(buffer_channel_type, buffer_component_type, initial_data);
+			ret.create_pixel_buffer(buffer_channel_type, buffer_component_type, initial_data)?;
 		} else {
 			if let Some(data_pointer) = initial_data {
-				unsafe {ret.upload_texture(data_pointer, buffer_channel_type, buffer_component_type, has_mipmap)};
+				unsafe {ret.upload_texture(data_pointer, buffer_channel_type, buffer_component_type, has_mipmap)?};
 			} else {
 				let empty_data = vec![0u8; ret.bytes_of_texture];
-				unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_channel_type, buffer_component_type, has_mipmap)};
+				unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_channel_type, buffer_component_type, has_mipmap)?};
 			}
 		}
-		ret
+		Ok(ret)
 	}
 
 	/// Create an 1D texture
@@ -884,7 +930,7 @@ where
 			buffer_channel_type: ChannelType,
 			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
-		) -> Self {
+		) -> Result<Self, TextureError> {
 		Self::new(glcore, TextureDimension::Tex1d, format, width, 1, 1, wrapping_s, TextureWrapping::Repeat, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
@@ -903,7 +949,7 @@ where
 			buffer_channel_type: ChannelType,
 			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
-		) -> Self {
+		) -> Result<Self, TextureError> {
 		Self::new(glcore, TextureDimension::Tex2d, format, width, height, 1, wrapping_s, wrapping_t, TextureWrapping::Repeat, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
@@ -924,7 +970,7 @@ where
 			buffer_channel_type: ChannelType,
 			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
-		) -> Self {
+		) -> Result<Self, TextureError> {
 		Self::new(glcore, TextureDimension::Tex3d, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
@@ -940,7 +986,7 @@ where
 			buffer_channel_type: ChannelType,
 			buffer_component_type: ComponentType,
 			initial_data: Option<*const c_void>,
-		) -> Self {
+		) -> Result<Self, TextureError> {
 		Self::new(glcore, TextureDimension::TexCube, format, size, size, 1, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, TextureWrapping::ClampToEdge, has_mipmap, mag_filter, min_filter, buffering, buffer_channel_type, buffer_component_type, initial_data)
 	}
 
@@ -954,12 +1000,12 @@ where
 			has_mipmap: bool,
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
-		) -> Self {
+		) -> Result<Self, TextureError> {
 		let mut buffer_channel_type = ChannelType::Rgb;
 		let mut buffer_component_type = ComponentType::U8;
 		get_channel_type_and_component_type_from_image_pixel::<P>(&mut buffer_channel_type, &mut buffer_component_type).unwrap();
 		let format = TextureFormat::from_channel_type_and_component_type(buffer_channel_type, buffer_component_type).unwrap();
-		let pixel_buffer = PixelBuffer::from_image(glcore.clone(), img);
+		let pixel_buffer = PixelBuffer::from_image(glcore.clone(), img)?;
 		match dim {
 			TextureDimension::Tex1d => {
 				assert_eq!(img.height(), 1);
@@ -986,27 +1032,27 @@ where
 			has_mipmap: bool,
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
-		) -> Result<Self, LoadImageError> {
+		) -> Result<Self, TextureError> {
 		let ext = path.extension().map_or_else(|| String::new(), |ext| OsStr::to_str(ext).unwrap().to_lowercase());
 		match &ext[..] {
 			"jpg" | "jpeg" => {
 				let image_data = std::fs::read(path)?;
 				let img: RgbImage = turbojpeg::decompress_image(&image_data)?;
-				Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter))
+				Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?)
 			}
 			_ => {
 				match ImageReader::open(path)?.decode()? {
-					DynamicImage::ImageLuma8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageLumaA8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageRgb8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageRgba8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageLuma16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageLumaA16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageRgb16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageRgba16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageRgb32F(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					DynamicImage::ImageRgba32F(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)),
-					_ => Err(LoadImageError::UnsupportedImageType(format!("Unsupported image type when loading texture from {path:?}"))),
+					DynamicImage::ImageLuma8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageLumaA8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageRgb8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageRgba8(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageLuma16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageLumaA16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageRgb16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageRgba16(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageRgb32F(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					DynamicImage::ImageRgba32F(img) => Ok(Self::from_image(glcore, dim, &img, wrapping_s, wrapping_t, has_mipmap, mag_filter, min_filter)?),
+					_ => Err(LoadImageError::UnsupportedImageType(format!("Unsupported image type when loading texture from {path:?}")))?,
 				}
 			}
 		}
@@ -1065,15 +1111,16 @@ where
 		}
 	}
 
-	fn create_pixel_buffer(&mut self, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, initial_data: Option<*const c_void>) {
-		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_channel_type, buffer_component_type, initial_data))
+	fn create_pixel_buffer(&mut self, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, initial_data: Option<*const c_void>) -> Result<(), TextureError> {
+		self.pixel_buffer = Some(PixelBuffer::new(self.glcore.clone(), self.width, self.height, self.depth, self.bytes_of_texture, buffer_channel_type, buffer_component_type, initial_data)?);
+		Ok(())
 	}
 
 	fn drop_pixel_buffer(&mut self) {
 		self.pixel_buffer = None
 	}
 
-	fn bind<'a>(&'a self) -> TextureBind<'a> {
+	fn bind<'a>(&'a self) -> Result<TextureBind<'a>, TextureError> {
 		match self.get_dim() {
 			TextureDimension::Tex1d => TextureBind::new(self, TextureTarget::Tex1d),
 			TextureDimension::Tex2d => TextureBind::new(self, TextureTarget::Tex2d),
@@ -1082,7 +1129,7 @@ where
 		}
 	}
 
-	fn bind_face<'a>(&'a self, face: CubeMapFaces) -> TextureBind<'a> {
+	fn bind_face<'a>(&'a self, face: CubeMapFaces) -> Result<TextureBind<'a>, TextureError> {
 		match self.get_dim() {
 			TextureDimension::TexCube => {
 				match face {
@@ -1104,18 +1151,18 @@ where
 	B: BufferVec<BP>,
 	BP: BufferVecItem {
 	fn drop(&mut self) {
-		self.glcore.glDeleteTextures(1, &self.name as *const u32);
+		self.glcore.glDeleteTextures(1, &self.name as *const u32).unwrap();
 	}
 }
 
 impl<'a> TextureBind<'a> {
 	/// Create a binding state to the texture, utilizing the RAII rules to manage the binding state
-	fn new(texture: &'a dyn GenericTexture, target: TextureTarget) -> Self {
-		texture.get_glcore().glBindTexture(target as u32, texture.get_name());
-		Self {
+	fn new(texture: &'a dyn GenericTexture, target: TextureTarget) -> Result<Self, TextureError> {
+		texture.get_glcore().glBindTexture(target as u32, texture.get_name())?;
+		Ok(Self {
 			texture,
 			target,
-		}
+		})
 	}
 
 	/// Explicitly unbind the texture.
@@ -1124,7 +1171,7 @@ impl<'a> TextureBind<'a> {
 
 impl Drop for TextureBind<'_> {
 	fn drop(&mut self) {
-		self.texture.get_glcore().glBindTexture(self.target as u32, 0);
+		self.texture.get_glcore().glBindTexture(self.target as u32, 0).unwrap();
 	}
 }
 

@@ -30,6 +30,9 @@ pub enum ShaderError {
 	/// Compute Shader error
 	CSError(String),
 
+	/// Unknown type of shader error
+	UnknownShaderError(String),
+
 	/// Shader program linkage error
 	LinkageError(String),
 
@@ -38,6 +41,15 @@ pub enum ShaderError {
 
 	/// Uniform not found
 	UniformNotFound(String),
+
+	/// FromUtf8Error
+	FromUtf8Error(String),
+
+	/// texture error
+	TextureError(String),
+
+	/// Shader is not supported for the current OpenGL version
+	ShaderNotSupported(String),
 }
 
 /// Error produced from the shader
@@ -135,51 +147,57 @@ impl Shader {
 	}
 
 	/// Compile a shader, returns the compiled shader object or the compiler info log
-	fn compile_shader(glcore: &GLCore, shader_type: u32, shader_source: &str) -> Result<u32, String> {
-		let shader = glcore.glCreateShader(shader_type);
+	fn compile_shader(glcore: &GLCore, shader_type: u32, shader_source: &str) -> Result<u32, ShaderError> {
+		let shader = glcore.glCreateShader(shader_type)?;
 		let bytes: Vec<i8> = shader_source.bytes().map(|byte| -> i8 {byte as i8}).collect();
 		let ptr_to_bytes = bytes.as_ptr();
 		let length = bytes.len() as i32;
-		glcore.glShaderSource(shader, 1, &ptr_to_bytes as *const *const i8, &length as *const i32);
-		glcore.glCompileShader(shader);
+		glcore.glShaderSource(shader, 1, &ptr_to_bytes as *const *const i8, &length as *const i32)?;
+		glcore.glCompileShader(shader)?;
 
 		let mut compiled: i32 = 0;
-		glcore.glGetShaderiv(shader, GL_COMPILE_STATUS, &mut compiled as *mut i32);
+		glcore.glGetShaderiv(shader, GL_COMPILE_STATUS, &mut compiled as *mut i32)?;
 		if compiled != 0 {
 			Ok(shader)
 		} else {
 			let mut output_len: i32 = 0;
-			glcore.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &mut output_len as *mut i32);
+			glcore.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &mut output_len as *mut i32)?;
 			let mut output =  Vec::<u8>::new();
 			let mut output_len_ret: i32 = 0;
 			output.resize(output_len as usize, 0);
-			glcore.glGetShaderInfoLog(shader, output_len, &mut output_len_ret as *mut i32, output.as_mut_ptr() as *mut i8);
-			glcore.glDeleteShader(shader);
+			glcore.glGetShaderInfoLog(shader, output_len, &mut output_len_ret as *mut i32, output.as_mut_ptr() as *mut i8)?;
+			glcore.glDeleteShader(shader)?;
 			let output = String::from_utf8_lossy(&output).to_string();
-			Err(output)
+			match shader_type {
+				GL_VERTEX_SHADER => Err(ShaderError::VSError(output)),
+				GL_GEOMETRY_SHADER => Err(ShaderError::GSError(output)),
+				GL_FRAGMENT_SHADER => Err(ShaderError::FSError(output)),
+				GL_COMPUTE_SHADER => Err(ShaderError::CSError(output)),
+				_ => Err(ShaderError::UnknownShaderError(output)),
+			}
 		}
 	}
 
 	/// Link a shader program, returns compiler/linker info log if linkage isn't successful.
 	fn link_program(glcore: &GLCore, program: u32) -> Result<(), ShaderError> {
-		glcore.glLinkProgram(program);
+		glcore.glLinkProgram(program)?;
 		Self::get_linkage_status(glcore, program)
 	}
 
 	/// Get the program linkage status, returns compiler/linker info log if linkage isn't successful.
 	fn get_linkage_status(glcore: &GLCore, program: u32)  -> Result<(), ShaderError> {
 		let mut linked: i32 = 0;
-		glcore.glGetProgramiv(program, GL_LINK_STATUS, &mut linked as *mut i32);
+		glcore.glGetProgramiv(program, GL_LINK_STATUS, &mut linked as *mut i32)?;
 		if linked != 0 {
 			Ok(())
 		} else {
 			let mut output_len: i32 = 0;
-			glcore.glGetProgramiv(program, GL_INFO_LOG_LENGTH, &mut output_len as *mut i32);
+			glcore.glGetProgramiv(program, GL_INFO_LOG_LENGTH, &mut output_len as *mut i32)?;
 			let mut output =  Vec::<u8>::new();
 			let mut output_len_ret: i32 = 0;
 			output.resize(output_len as usize, 0);
-			glcore.glGetProgramInfoLog(program, output_len, &mut output_len_ret as *mut i32, output.as_mut_ptr() as *mut i8);
-			glcore.glDeleteProgram(program);
+			glcore.glGetProgramInfoLog(program, output_len, &mut output_len_ret as *mut i32, output.as_mut_ptr() as *mut i8)?;
+			glcore.glDeleteProgram(program)?;
 			let output = String::from_utf8_lossy(&output).to_string();
 			Err(ShaderError::LinkageError(output))
 		}
@@ -187,33 +205,21 @@ impl Shader {
 
 	/// Create a new traditional renderer shader program
 	pub fn new(glcore: Rc<GLCore>, vertex_shader: Option<&str>, geometry_shader: Option<&str>, fragment_shader: Option<&str>) -> Result<Self, ShaderError> {
-		let program = glcore.glCreateProgram();
+		let program = glcore.glCreateProgram()?;
 		if let Some(vertex_shader) = vertex_shader {
-			match Self::compile_shader(glcore.as_ref(), GL_VERTEX_SHADER, vertex_shader) {
-				Ok(shader) => {
-					glcore.glAttachShader(program, shader);
-					glcore.glDeleteShader(shader);
-				}
-				Err(output) => return Err(ShaderError::VSError(output)),
-			};
+			let shader = Self::compile_shader(glcore.as_ref(), GL_VERTEX_SHADER, vertex_shader)?;
+			glcore.glAttachShader(program, shader)?;
+			glcore.glDeleteShader(shader)?;
 		}
 		if let Some(geometry_shader) = geometry_shader {
-			match Self::compile_shader(glcore.as_ref(), GL_GEOMETRY_SHADER, geometry_shader) {
-				Ok(shader) => {
-					glcore.glAttachShader(program, shader);
-					glcore.glDeleteShader(shader);
-				}
-				Err(output) => return Err(ShaderError::GSError(output)),
-			};
+			let shader = Self::compile_shader(glcore.as_ref(), GL_GEOMETRY_SHADER, geometry_shader)?;
+			glcore.glAttachShader(program, shader)?;
+			glcore.glDeleteShader(shader)?;
 		}
 		if let Some(fragment_shader) = fragment_shader {
-			match Self::compile_shader(glcore.as_ref(), GL_FRAGMENT_SHADER, fragment_shader) {
-				Ok(shader) => {
-					glcore.glAttachShader(program, shader);
-					glcore.glDeleteShader(shader);
-				}
-				Err(output) => return Err(ShaderError::FSError(output)),
-			};
+			let shader = Self::compile_shader(glcore.as_ref(), GL_FRAGMENT_SHADER, fragment_shader)?;
+			glcore.glAttachShader(program, shader)?;
+			glcore.glDeleteShader(shader)?;
 		}
 		Self::link_program(glcore.as_ref(), program)?;
 		Ok(Self {
@@ -225,14 +231,10 @@ impl Shader {
 
 	/// Create a new compute shader program
 	pub fn new_compute(glcore: Rc<GLCore>, shader_source: &str) -> Result<Self, ShaderError> {
-		let program = glcore.glCreateProgram();
-		match Self::compile_shader(glcore.as_ref(), GL_COMPUTE_SHADER, shader_source) {
-			Ok(shader) => {
-				glcore.glAttachShader(program, shader);
-				glcore.glDeleteShader(shader);
-			}
-			Err(output) => return Err(ShaderError::CSError(output)),
-		};
+		let program = glcore.glCreateProgram()?;
+		let shader = Self::compile_shader(glcore.as_ref(), GL_COMPUTE_SHADER, shader_source)?;
+		glcore.glAttachShader(program, shader)?;
+		glcore.glDeleteShader(shader)?;
 		Self::link_program(glcore.as_ref(), program)?;
 		Ok(Self {
 			glcore,
@@ -242,18 +244,18 @@ impl Shader {
 	}
 
 	/// Get all of the active attributes of the shader
-	pub fn get_active_attribs(&self) -> Result<BTreeMap<String, ShaderInputVarType>, FromUtf8Error> {
+	pub fn get_active_attribs(&self) -> Result<BTreeMap<String, ShaderInputVarType>, ShaderError> {
 		let mut num_attribs: i32 = 0;
 		let mut max_length: i32 = 0;
-		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTES, &mut num_attribs as *mut _);
-		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &mut max_length as *mut _);
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTES, &mut num_attribs as *mut _)?;
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &mut max_length as *mut _)?;
 
 		let mut ret = BTreeMap::<String, ShaderInputVarType>::new();
 		for i in 0..num_attribs {
 			let mut name = vec![0i8; max_length as usize];
 			let mut size: i32 = 0;
 			let mut type_: u32 = 0;
-			self.glcore.glGetActiveAttrib(self.program, i as u32, max_length, null_mut::<i32>(), &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
+			self.glcore.glGetActiveAttrib(self.program, i as u32, max_length, null_mut::<i32>(), &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr())?;
 			let name = String::from_utf8(unsafe{transmute::<Vec<i8>, Vec<u8>>(name)})?;
 			let name = name.trim_end_matches('\0').to_string();
 			let type_ = ShaderInputType::from(type_);
@@ -263,24 +265,24 @@ impl Shader {
 	}
 
 	/// Get the location of the shader attrib
-	pub fn get_attrib_location(&self, attrib_name: &str) -> i32 {
+	pub fn get_attrib_location(&self, attrib_name: &str) -> Result<i32, ShaderError> {
 		let attrib_name = CString::new(attrib_name).unwrap();
-		self.glcore.glGetAttribLocation(self.program, attrib_name.as_ptr())
+		Ok(self.glcore.glGetAttribLocation(self.program, attrib_name.as_ptr())?)
 	}
 
 	/// Get all of the active uniforms of the shader
-	pub fn get_active_uniforms(&self) -> Result<BTreeMap<String, ShaderInputVarType>, FromUtf8Error> {
+	pub fn get_active_uniforms(&self) -> Result<BTreeMap<String, ShaderInputVarType>, ShaderError> {
 		let mut num_uniforms: i32 = 0;
 		let mut max_length: i32 = 0;
-		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_UNIFORMS, &mut num_uniforms as *mut _);
-		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &mut max_length as *mut _);
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_UNIFORMS, &mut num_uniforms as *mut _)?;
+		self.glcore.glGetProgramiv(self.program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &mut max_length as *mut _)?;
 
 		let mut ret = BTreeMap::<String, ShaderInputVarType>::new();
 		for i in 0..num_uniforms {
 			let mut name = vec![0i8; max_length as usize];
 			let mut size: i32 = 0;
 			let mut type_: u32 = 0;
-			self.glcore.glGetActiveUniform(self.program, i as u32, max_length, null_mut::<i32>(), &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr());
+			self.glcore.glGetActiveUniform(self.program, i as u32, max_length, null_mut::<i32>(), &mut size as *mut _, &mut type_ as *mut _, name.as_mut_ptr())?;
 			let name = String::from_utf8(unsafe{transmute::<Vec<i8>, Vec<u8>>(name)})?;
 			let name = name.trim_end_matches('\0').to_string();
 			let type_ = ShaderInputType::from(type_);
@@ -290,26 +292,26 @@ impl Shader {
 	}
 
 	/// Get the location of the shader attrib
-	pub fn get_uniform_location(&self, uniform_name: &str) -> i32 {
+	pub fn get_uniform_location(&self, uniform_name: &str) -> Result<i32, ShaderError> {
 		let uniform_name = CString::new(uniform_name).unwrap();
-		self.glcore.glGetUniformLocation(self.program, uniform_name.as_ptr())
+		Ok(self.glcore.glGetUniformLocation(self.program, uniform_name.as_ptr())?)
 	}
 
 	/// Get the compiled + linked program binary
-	pub fn get_program_binary(&self) -> ShaderBinary {
+	pub fn get_program_binary(&self) -> Result<ShaderBinary, ShaderError> {
 		let mut binary_length = 0;
 		let mut binary_format = 0;
-		self.glcore.glGetProgramiv(self.program, GL_PROGRAM_BINARY_LENGTH, &mut binary_length as *mut _);
+		self.glcore.glGetProgramiv(self.program, GL_PROGRAM_BINARY_LENGTH, &mut binary_length as *mut _)?;
 		let mut binary = Vec::<u8>::new();
 		binary.resize(binary_length as usize, 0);
-		self.glcore.glGetProgramBinary(self.program, binary_length, null_mut(), &mut binary_format as *mut _, binary.as_mut_ptr() as *mut _);
-		ShaderBinary::new(binary_format, self.shader_type, binary)
+		self.glcore.glGetProgramBinary(self.program, binary_length, null_mut(), &mut binary_format as *mut _, binary.as_mut_ptr() as *mut _)?;
+		Ok(ShaderBinary::new(binary_format, self.shader_type, binary))
 	}
 
 	/// Create a program from pre-compiled binary
 	pub fn from_program_binary(glcore: Rc<GLCore>, binary: &ShaderBinary) -> Result<Self, ShaderError> {
-		let program = glcore.glCreateProgram();
-		glcore.glProgramBinary(program, binary.format, binary.binary.as_ptr() as *const _, binary.binary.len() as i32);
+		let program = glcore.glCreateProgram()?;
+		glcore.glProgramBinary(program, binary.format, binary.binary.as_ptr() as *const _, binary.binary.len() as i32)?;
 		match Self::get_linkage_status(&glcore, program) {
 			Ok(_) => Ok(Self {
 				glcore,
@@ -317,72 +319,78 @@ impl Shader {
 				program,
 			}),
 			Err(e) => {
-				glcore.glDeleteProgram(program);
+				glcore.glDeleteProgram(program)?;
 				Err(e)
 			}
 		}
 	}
 
 	/// Set to use the shader
-	pub fn use_program<'a>(&'a self) -> ShaderUse<'a> {
+	pub fn use_program<'a>(&'a self) -> Result<ShaderUse<'a>, ShaderError> {
 		ShaderUse::new(self)
 	}
 }
 
 impl<'a> ShaderUse<'a> {
 	/// Create a new `using` state to the `Shader`
-	fn new(shader: &'a Shader) -> Self {
-		shader.glcore.glUseProgram(shader.get_name());
-		Self {
+	fn new(shader: &'a Shader) -> Result<Self, ShaderError> {
+		shader.glcore.glUseProgram(shader.get_name())?;
+		Ok(Self {
 			shader,
-		}
+		})
 	}
 
 	/// Dispatch the compute shader
-	pub fn dispatch_compute(&self, num_groups_x: u32, num_groups_y: u32, num_groups_z: u32) {
+	pub fn dispatch_compute(&self, num_groups_x: u32, num_groups_y: u32, num_groups_z: u32) -> Result<(), ShaderError> {
 		if self.shader.shader_type != ShaderType::Compute {
 			panic!("Only compute shaders could use the `dispatch_compute()` method.");
 		}
-		self.shader.glcore.glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
+		self.shader.glcore.glDispatchCompute(num_groups_x, num_groups_y, num_groups_z)?;
+		Ok(())
 	}
 
 	/// Dispatch the compute shader
-	pub fn dispatch_compute_indirect(&self, buffer: &Buffer, index: usize) {
+	pub fn dispatch_compute_indirect(&self, buffer: &Buffer, start_index: usize, count: usize) -> Result<(), ShaderError> {
 		if self.shader.shader_type != ShaderType::Compute {
 			panic!("Only compute shaders could use the `dispatch_compute_indirect()` method.");
 		}
-		let bind = buffer.bind_to(BufferTarget::DispatchIndirectBuffer);
-		self.shader.glcore.glDispatchComputeIndirect(index * size_of::<DispatchIndirectCommand>());
+		let bind = buffer.bind_to(BufferTarget::DispatchIndirectBuffer)?;
+		let end_index = start_index + count;
+		for i in start_index..end_index {
+			self.shader.glcore.glDispatchComputeIndirect(i * size_of::<DispatchIndirectCommand>())?;
+		}
 		bind.unbind();
+		Ok(())
 	}
 
 	/// Wrapper for matrices of attrib
-	pub unsafe fn vertex_attrib_matrix_pointer(&self, location: u32, cols: u32, rows: u32, base_type: ShaderInputType, normalize: bool, stride: isize, pointer: *const c_void) {
+	pub unsafe fn vertex_attrib_matrix_pointer(&self, location: u32, cols: u32, rows: u32, base_type: ShaderInputType, normalize: bool, stride: isize, pointer: *const c_void) -> Result<(), ShaderError> {
 		match base_type {
 			ShaderInputType::Float => {
 				for i in 0..rows {
-					self.shader.glcore.glVertexAttribPointer(location + i, cols as i32, base_type as u32, normalize as u8, stride as i32, pointer as *const _)
+					self.shader.glcore.glVertexAttribPointer(location + i, cols as i32, base_type as u32, normalize as u8, stride as i32, pointer as *const _)?;
 				}
 			}
 			ShaderInputType::Double => {
 				for i in 0..rows {
-					self.shader.glcore.glVertexAttribLPointer(location + i, cols as i32, base_type as u32, stride as i32, pointer as *const _)
+					self.shader.glcore.glVertexAttribLPointer(location + i, cols as i32, base_type as u32, stride as i32, pointer as *const _)?;
 				}
 			}
 			_ => panic!("Bad parameter for `vertex_attrib_matrix_pointer()`: base_type = {base_type:?}"),
 		}
+		Ok(())
 	}
 
 	/// Set attrib value by pointer
 	pub unsafe fn set_attrib_ptr<T: Any>(&self, name: &str, attrib_type: &ShaderInputVarType, do_normalize: bool, stride: isize, ptr_param: *const c_void) -> Result<(), ShaderError> {
-		let location = self.shader.get_attrib_location(&name);
+		let location = self.shader.get_attrib_location(&name)?;
 		if location >= 0 {
 			let location = location as u32;
 			let (p_size, p_rows) = attrib_type.get_size_and_rows();
-			if type_name::<T>().ends_with("f32") {unsafe {self.vertex_attrib_matrix_pointer(location, p_size, p_rows, attrib_type.get_base_type(), do_normalize, stride, ptr_param)}} else
-			if type_name::<T>().ends_with("i32") {self.shader.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
-			if type_name::<T>().ends_with("u32") {self.shader.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)} else
-			if type_name::<T>().ends_with("f64") {unsafe {self.vertex_attrib_matrix_pointer(location, p_size, p_rows, attrib_type.get_base_type(), do_normalize, stride, ptr_param)}} else
+			if type_name::<T>().ends_with("f32") {unsafe {self.vertex_attrib_matrix_pointer(location, p_size, p_rows, attrib_type.get_base_type(), do_normalize, stride, ptr_param)?}} else
+			if type_name::<T>().ends_with("i32") {self.shader.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)?} else
+			if type_name::<T>().ends_with("u32") {self.shader.glcore.glVertexAttribIPointer(location, p_size as i32, attrib_type.get_base_type() as u32, stride as i32, ptr_param)?} else
+			if type_name::<T>().ends_with("f64") {unsafe {self.vertex_attrib_matrix_pointer(location, p_size, p_rows, attrib_type.get_base_type(), do_normalize, stride, ptr_param)?}} else
 			{panic!("The generic type parameter of `ShaderUse::set_attrib_ptr()` must be `f32`, `i32`, `u32`, `f64`")}
 			Ok(())
 		} else {
@@ -392,43 +400,43 @@ impl<'a> ShaderUse<'a> {
 
 	/// Set attrib value
 	pub fn set_attrib(&self, name: &str, v: &dyn Any) -> Result<(), ShaderError> {
-		let location = self.shader.get_attrib_location(&name);
+		let location = self.shader.get_attrib_location(&name)?;
 		if location >= 0 {
 			let location = location as u32;
-			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glVertexAttribPointer (location, 1, ShaderInputType::Float as u32, 0, 0, (v as *const f32) as *const _)} else
-			if let Some(v) = v.downcast_ref::<Vec2>()		{self.shader.glcore.glVertexAttribPointer (location, 2, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<Vec3>()		{self.shader.glcore.glVertexAttribPointer (location, 3, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<Vec4>()		{self.shader.glcore.glVertexAttribPointer (location, 4, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<Mat2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat2x3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat2x4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat3x2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat3x4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat4x2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<Mat4x3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<i32>()		{self.shader.glcore.glVertexAttribIPointer(location, 1, ShaderInputType::Int as u32, 0, (v as *const i32) as *const _)} else
-			if let Some(v) = v.downcast_ref::<IVec2>()		{self.shader.glcore.glVertexAttribIPointer(location, 2, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<IVec3>()		{self.shader.glcore.glVertexAttribIPointer(location, 3, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<IVec4>()		{self.shader.glcore.glVertexAttribIPointer(location, 4, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<u32>()		{self.shader.glcore.glVertexAttribIPointer(location, 1, ShaderInputType::UInt as u32, 0, (v as *const u32) as *const _)} else
-			if let Some(v) = v.downcast_ref::<UVec2>()		{self.shader.glcore.glVertexAttribIPointer(location, 2, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<UVec3>()		{self.shader.glcore.glVertexAttribIPointer(location, 3, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<UVec4>()		{self.shader.glcore.glVertexAttribIPointer(location, 4, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<f64>()		{self.shader.glcore.glVertexAttribLPointer(location, 1, ShaderInputType::Double as u32, 0, (v as *const f64) as *const _)} else
-			if let Some(v) = v.downcast_ref::<DVec2>()		{self.shader.glcore.glVertexAttribLPointer(location, 2, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<DVec3>()		{self.shader.glcore.glVertexAttribLPointer(location, 3, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<DVec4>()		{self.shader.glcore.glVertexAttribLPointer(location, 4, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)} else
-			if let Some(v) = v.downcast_ref::<DMat2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat2x3>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat2x4>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat3x2>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat3x4>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat4x2>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
-			if let Some(v) = v.downcast_ref::<DMat4x3>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}} else
+			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glVertexAttribPointer (location, 1, ShaderInputType::Float as u32, 0, 0, (v as *const f32) as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<Vec2>()		{self.shader.glcore.glVertexAttribPointer (location, 2, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<Vec3>()		{self.shader.glcore.glVertexAttribPointer (location, 3, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<Vec4>()		{self.shader.glcore.glVertexAttribPointer (location, 4, ShaderInputType::Float as u32, 0, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<Mat2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat2x3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat2x4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat3x2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat3x4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 4, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat4x2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 2, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<Mat4x3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 3, ShaderInputType::Float, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<i32>()		{self.shader.glcore.glVertexAttribIPointer(location, 1, ShaderInputType::Int as u32, 0, (v as *const i32) as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<IVec2>()		{self.shader.glcore.glVertexAttribIPointer(location, 2, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<IVec3>()		{self.shader.glcore.glVertexAttribIPointer(location, 3, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<IVec4>()		{self.shader.glcore.glVertexAttribIPointer(location, 4, ShaderInputType::Int as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<u32>()		{self.shader.glcore.glVertexAttribIPointer(location, 1, ShaderInputType::UInt as u32, 0, (v as *const u32) as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<UVec2>()		{self.shader.glcore.glVertexAttribIPointer(location, 2, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<UVec3>()		{self.shader.glcore.glVertexAttribIPointer(location, 3, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<UVec4>()		{self.shader.glcore.glVertexAttribIPointer(location, 4, ShaderInputType::UInt as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<f64>()		{self.shader.glcore.glVertexAttribLPointer(location, 1, ShaderInputType::Double as u32, 0, (v as *const f64) as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<DVec2>()		{self.shader.glcore.glVertexAttribLPointer(location, 2, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<DVec3>()		{self.shader.glcore.glVertexAttribLPointer(location, 3, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<DVec4>()		{self.shader.glcore.glVertexAttribLPointer(location, 4, ShaderInputType::Double as u32, 0, v.as_ptr() as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<DMat2>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat3>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat4>()		{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat2x3>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat2x4>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 2, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat3x2>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat3x4>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 3, 4, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat4x2>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 2, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
+			if let Some(v) = v.downcast_ref::<DMat4x3>()	{unsafe {self.vertex_attrib_matrix_pointer(location, 4, 3, ShaderInputType::Double, false, 0, v.as_ptr() as *const _)}?;} else
 			{panic!("Unknown type of attrib value: {v:?}")}
 			Ok(())
 		} else {
@@ -438,42 +446,42 @@ impl<'a> ShaderUse<'a> {
 
 	/// Set uniform value
 	pub fn set_uniform(&self, name: &str, v: &dyn Any) -> Result<(), ShaderError> {
-		let location = self.shader.get_uniform_location(&name);
+		let location = self.shader.get_uniform_location(&name)?;
 		if location >= 0 {
-			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glUniform1fv(location, 1, v as *const _)} else
-			if let Some(v) = v.downcast_ref::<Vec2>()		{self.shader.glcore.glUniform2fv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Vec3>()		{self.shader.glcore.glUniform3fv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Vec4>()		{self.shader.glcore.glUniform4fv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat2>()		{self.shader.glcore.glUniformMatrix2fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat3>()		{self.shader.glcore.glUniformMatrix3fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat4>()		{self.shader.glcore.glUniformMatrix4fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat2x3>()		{self.shader.glcore.glUniformMatrix2x3fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat2x4>()		{self.shader.glcore.glUniformMatrix2x4fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat3x2>()		{self.shader.glcore.glUniformMatrix3x2fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat3x4>()		{self.shader.glcore.glUniformMatrix3x4fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat4x2>()		{self.shader.glcore.glUniformMatrix4x2fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<Mat4x3>()		{self.shader.glcore.glUniformMatrix4x3fv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<i32>()		{self.shader.glcore.glUniform1iv(location, 1, v as *const _)} else
-			if let Some(v) = v.downcast_ref::<IVec2>()		{self.shader.glcore.glUniform2iv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<IVec3>()		{self.shader.glcore.glUniform3iv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<IVec4>()		{self.shader.glcore.glUniform4iv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<u32>()		{self.shader.glcore.glUniform1uiv(location, 1, v as *const _)} else
-			if let Some(v) = v.downcast_ref::<UVec2>()		{self.shader.glcore.glUniform2uiv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<UVec3>()		{self.shader.glcore.glUniform3uiv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<UVec4>()		{self.shader.glcore.glUniform4uiv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<f64>()		{self.shader.glcore.glUniform1dv(location, 1, v as *const _)} else
-			if let Some(v) = v.downcast_ref::<DVec2>()		{self.shader.glcore.glUniform2dv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DVec3>()		{self.shader.glcore.glUniform3dv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DVec4>()		{self.shader.glcore.glUniform4dv(location, 1, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat2>()		{self.shader.glcore.glUniformMatrix2dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat3>()		{self.shader.glcore.glUniformMatrix3dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat4>()		{self.shader.glcore.glUniformMatrix4dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat2x3>()	{self.shader.glcore.glUniformMatrix2x3dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat2x4>()	{self.shader.glcore.glUniformMatrix2x4dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat3x2>()	{self.shader.glcore.glUniformMatrix3x2dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat3x4>()	{self.shader.glcore.glUniformMatrix3x4dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat4x2>()	{self.shader.glcore.glUniformMatrix4x2dv(location, 1, 0, v.as_ptr())} else
-			if let Some(v) = v.downcast_ref::<DMat4x3>()	{self.shader.glcore.glUniformMatrix4x3dv(location, 1, 0, v.as_ptr())} else
+			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glUniform1fv(location, 1, v as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<Vec2>()		{self.shader.glcore.glUniform2fv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Vec3>()		{self.shader.glcore.glUniform3fv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Vec4>()		{self.shader.glcore.glUniform4fv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat2>()		{self.shader.glcore.glUniformMatrix2fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat3>()		{self.shader.glcore.glUniformMatrix3fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat4>()		{self.shader.glcore.glUniformMatrix4fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat2x3>()		{self.shader.glcore.glUniformMatrix2x3fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat2x4>()		{self.shader.glcore.glUniformMatrix2x4fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat3x2>()		{self.shader.glcore.glUniformMatrix3x2fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat3x4>()		{self.shader.glcore.glUniformMatrix3x4fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat4x2>()		{self.shader.glcore.glUniformMatrix4x2fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<Mat4x3>()		{self.shader.glcore.glUniformMatrix4x3fv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<i32>()		{self.shader.glcore.glUniform1iv(location, 1, v as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<IVec2>()		{self.shader.glcore.glUniform2iv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<IVec3>()		{self.shader.glcore.glUniform3iv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<IVec4>()		{self.shader.glcore.glUniform4iv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<u32>()		{self.shader.glcore.glUniform1uiv(location, 1, v as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<UVec2>()		{self.shader.glcore.glUniform2uiv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<UVec3>()		{self.shader.glcore.glUniform3uiv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<UVec4>()		{self.shader.glcore.glUniform4uiv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<f64>()		{self.shader.glcore.glUniform1dv(location, 1, v as *const _)?;} else
+			if let Some(v) = v.downcast_ref::<DVec2>()		{self.shader.glcore.glUniform2dv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DVec3>()		{self.shader.glcore.glUniform3dv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DVec4>()		{self.shader.glcore.glUniform4dv(location, 1, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat2>()		{self.shader.glcore.glUniformMatrix2dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat3>()		{self.shader.glcore.glUniformMatrix3dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat4>()		{self.shader.glcore.glUniformMatrix4dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat2x3>()	{self.shader.glcore.glUniformMatrix2x3dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat2x4>()	{self.shader.glcore.glUniformMatrix2x4dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat3x2>()	{self.shader.glcore.glUniformMatrix3x2dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat3x4>()	{self.shader.glcore.glUniformMatrix3x4dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat4x2>()	{self.shader.glcore.glUniformMatrix4x2dv(location, 1, 0, v.as_ptr())?;} else
+			if let Some(v) = v.downcast_ref::<DMat4x3>()	{self.shader.glcore.glUniformMatrix4x3dv(location, 1, 0, v.as_ptr())?;} else
 			{panic!("Unknown type of uniform value: {v:?}")}
 			Ok(())
 		} else {
@@ -482,9 +490,9 @@ impl<'a> ShaderUse<'a> {
 	}
 
 	/// Set shader uniform inputs by a material
-	pub fn setup_material_uniforms(&self, material: &dyn Material, prefix: Option<&str>, camel_case: bool) {
+	pub fn setup_material_uniforms(&self, material: &dyn Material, prefix: Option<&str>, camel_case: bool) -> Result<(), ShaderError> {
 		let glcore = &self.shader.glcore;
-		let shader_uniforms = self.shader.get_active_uniforms().unwrap();
+		let shader_uniforms = self.shader.get_active_uniforms()?;
 		let texture_names = material.get_names();
 		let mut active_texture = 0u32;
 		for name in texture_names.iter() {
@@ -499,28 +507,29 @@ impl<'a> ShaderUse<'a> {
 			}
 			if let Some(_) = shader_uniforms.get(&name_mod) {
 				if let Some(texture) = material.get_by_name(&name) {
-					let location = self.shader.get_uniform_location(&name_mod);
+					let location = self.shader.get_uniform_location(&name_mod)?;
 					if location == -1 {
 						continue;
 					}
 					match texture {
 						MaterialComponent::Texture(texture) => {
-							texture.set_active_unit(active_texture);
-							let bind = texture.bind();
-							glcore.glUniform1i(location, active_texture as i32);
+							texture.set_active_unit(active_texture)?;
+							let bind = texture.bind()?;
+							glcore.glUniform1i(location, active_texture as i32)?;
 							bind.unbind();
 							active_texture += 1;
 						}
 						MaterialComponent::Color(color) => {
-							glcore.glUniform4f(location, color.x, color.y, color.z, color.w);
+							glcore.glUniform4f(location, color.x, color.y, color.z, color.w)?;
 						}
 						MaterialComponent::Luminance(lum) => {
-							glcore.glUniform1f(location, *lum);
+							glcore.glUniform1f(location, *lum)?;
 						}
 					}
 				}
 			}
 		}
+		Ok(())
 	}
 
 	/// Unuse the program.
@@ -529,13 +538,13 @@ impl<'a> ShaderUse<'a> {
 
 impl Drop for ShaderUse<'_> {
 	fn drop(&mut self) {
-		self.shader.glcore.glUseProgram(0)
+		self.shader.glcore.glUseProgram(0).unwrap();
 	}
 }
 
 impl Drop for Shader {
 	fn drop(&mut self) {
-		self.glcore.glDeleteProgram(self.program)
+		self.glcore.glDeleteProgram(self.program).unwrap();
 	}
 }
 
@@ -642,6 +651,24 @@ impl Debug for Shader {
 	}
 }
 
+impl From<GLCoreError> for ShaderError {
+	fn from(val: GLCoreError) -> Self {
+		Self::ShaderNotSupported(format!("{val:?}"))
+	}
+}
+
+impl From<FromUtf8Error> for ShaderError {
+	fn from(val: FromUtf8Error) -> Self {
+		Self::FromUtf8Error(format!("{val:?}"))
+	}
+}
+
+impl From<TextureError> for ShaderError {
+	fn from(val: TextureError) -> Self {
+		Self::TextureError(format!("{val:?}"))
+	}
+}
+
 impl Debug for ShaderError {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match self {
@@ -649,9 +676,13 @@ impl Debug for ShaderError {
 			Self::GSError(infolog) => write!(f, "Geometry Shader Error:\n{infolog}"),
 			Self::FSError(infolog) => write!(f, "Fragment Shader Error:\n{infolog}"),
 			Self::CSError(infolog) => write!(f, "Compute Shader Error:\n{infolog}"),
+			Self::UnknownShaderError(infolog) => write!(f, "Unknown type of shader Error:\n{infolog}"),
 			Self::LinkageError(infolog) => write!(f, "Shader Linkage Error:\n{infolog}"),
 			Self::AttribNotFound(attrib) => write!(f, "Attrib not found: {attrib}"),
 			Self::UniformNotFound(uniform) => write!(f, "Uniform not found: {uniform}"),
+			Self::FromUtf8Error(reason) => write!(f, "Decode UTF-8 string failed: {reason}"),
+			Self::TextureError(reason) => write!(f, "Texture error: {reason}"),
+			Self::ShaderNotSupported(reason) => write!(f, "OpenGL core error: {reason}"),
 		}
 	}
 }
