@@ -80,6 +80,42 @@ impl Buffer {
 		self.name
 	}
 
+	/// Release the internal name
+	pub unsafe fn to_raw(mut self) -> u32 {
+		let ret = self.name;
+		self.name = 0;
+		ret
+	}
+
+	/// From an internal name
+	pub unsafe fn from_raw(glcore: Rc<GLCore>, name: u32, target: BufferTarget) -> Result<Self, GLCoreError> {
+		glcore.glBindBuffer(target as u32, name)?;
+		let mut size = 0;
+		let mut usage = 0;
+		glcore.glGetBufferParameteriv(target as u32, GL_BUFFER_SIZE, &mut size as *mut _)?;
+		glcore.glGetBufferParameteriv(target as u32, GL_BUFFER_USAGE, &mut usage as *mut _)?;
+		glcore.glBindBuffer(target as u32, 0)?;
+		let usage = match usage as u32 {
+			GL_STREAM_DRAW  => BufferUsage::StreamDraw,
+			GL_STREAM_READ  => BufferUsage::StreamRead,
+			GL_STREAM_COPY  => BufferUsage::StreamCopy,
+			GL_STATIC_DRAW  => BufferUsage::StaticDraw,
+			GL_STATIC_READ  => BufferUsage::StaticRead,
+			GL_STATIC_COPY  => BufferUsage::StaticCopy,
+			GL_DYNAMIC_DRAW => BufferUsage::DynamicDraw,
+			GL_DYNAMIC_READ => BufferUsage::DynamicRead,
+			GL_DYNAMIC_COPY => BufferUsage::DynamicCopy,
+			_ => panic!("Unknown buffer usage: `{usage}`"),
+		};
+		Ok(Self {
+			glcore,
+			name,
+			usage,
+			target,
+			size: size as usize,
+		})
+	}
+
 	/// Create a new OpenGL buffer with the specified size and data. The data could be `NULL`, indicating no initialization to the buffer.
 	pub fn new(glcore: Rc<GLCore>, target: BufferTarget, size: usize, usage: BufferUsage, data_ptr: *const c_void) -> Result<Self, GLCoreError> {
 		let mut name: u32 = 0;
@@ -153,7 +189,9 @@ impl Buffer {
 impl Drop for Buffer {
 	/// Delete the OpenGL buffer on `drop()` called.
 	fn drop(&mut self) {
-		self.glcore.glDeleteBuffers(1, &self.name as *const u32).unwrap();
+		if self.name != 0 {
+			self.glcore.glDeleteBuffers(1, &self.name as *const u32).unwrap();
+		}
 	}
 }
 
