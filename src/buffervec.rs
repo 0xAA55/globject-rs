@@ -59,9 +59,6 @@ pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
 		self.len() == 0
 	}
 
-	/// Set the binding target of the buffer
-	fn set_target(&mut self, target: BufferTarget);
-
 	/// Create a `BufferBind` to use the RAII system to manage the binding state.
 	fn bind<'a>(&'a self) -> Result<BufferBind<'a>, GLCoreError> {
 		self.get_buffer().bind()
@@ -121,6 +118,18 @@ impl<T: BufferVecItem> BufferVecStatic<T> {
 impl<T: BufferVecItem> BufferVec<T> for BufferVecStatic<T> {
 	fn get_buffer(&self) -> &Buffer {
 		&self.buffer
+	}
+
+	fn get_buffer_mut(&mut self) -> &mut Buffer {
+		&mut self.buffer
+	}
+
+	fn get_target(&self) -> BufferTarget {
+		self.buffer.get_target()
+	}
+
+	fn set_target(&mut self, target: BufferTarget) {
+		self.buffer.set_target(target)
 	}
 
 	fn capacity(&self) -> usize {
@@ -197,8 +206,6 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecStatic<T> {
 	fn flush(&mut self) -> Result<(), GLCoreError> {
 		*self.cache.get_mut() = BufferVecStaticCache::None;
 		Ok(())
-	fn set_target(&mut self, target: BufferTarget) {
-		self.buffer.set_target(target)
 	}
 }
 
@@ -374,6 +381,18 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecDynamic<T> {
 		self.buffer.get_buffer()
 	}
 
+	fn get_buffer_mut(&mut self) -> &mut Buffer {
+		self.buffer.get_buffer_mut()
+	}
+
+	fn get_target(&self) -> BufferTarget {
+		self.buffer.get_target()
+	}
+
+	fn set_target(&mut self, target: BufferTarget) {
+		self.buffer.set_target(target)
+	}
+
 	fn len(&self) -> usize {
 		self.num_items
 	}
@@ -433,10 +452,6 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecDynamic<T> {
 			self.cache_modified_bitmap.set(i, true);
 		}
 		Ok(())
-	}
-
-	fn set_target(&mut self, target: BufferTarget) {
-		self.buffer.set_target(target)
 	}
 
 	fn flush(&mut self) -> Result<(), GLCoreError> {
