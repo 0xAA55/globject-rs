@@ -14,7 +14,14 @@ pub trait BufferVecItem: Copy + Sized + Default + Debug {}
 impl<T> BufferVecItem for T where T: Copy + Sized + Default + Debug {}
 
 /// The `BufferVec` trait
-pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
+pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> +
+	Index<usize> + IndexMut<usize> +
+	Index<Range<usize>> + IndexMut<Range<usize>> +
+	Index<RangeTo<usize>> + IndexMut<RangeTo<usize>> +
+	Index<RangeFull> + IndexMut<RangeFull> +
+	Index<RangeInclusive<usize>> + IndexMut<RangeInclusive<usize>> +
+	Index<RangeToInclusive<usize>> + IndexMut<RangeToInclusive<usize>>
+{
 	/// Get the underlying `Buffer`
 	fn get_buffer(&self) -> &Buffer;
 
