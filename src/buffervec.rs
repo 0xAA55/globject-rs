@@ -5,7 +5,7 @@ use std::{
 	cell::UnsafeCell,
 	fmt::Debug,
 	mem::{ManuallyDrop, size_of, size_of_val},
-	ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
+	ops::{Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
 	rc::Rc,
 };
 
