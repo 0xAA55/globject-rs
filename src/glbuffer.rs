@@ -80,14 +80,21 @@ impl Buffer {
 		self.name
 	}
 
-	/// Release the internal name
+	/// # Safety
+	///
+	/// Release the OpenGL handle of the buffer object, consuming the `Buffer` struct.
+	/// You have to delete the buffer object manually.
 	pub unsafe fn to_raw(mut self) -> u32 {
 		let ret = self.name;
 		self.name = 0;
 		ret
 	}
 
-	/// From an internal name
+	/// # Safety
+	///
+	/// Create a `Buffer` struct from an OpenGL handle to the buffer object.
+	/// After the call, the OpenGL handle is managed by this struct.
+	/// On `drop()`, the OpenGL handle is deleted.
 	pub unsafe fn from_raw(glcore: Rc<GLCore>, name: u32, target: BufferTarget) -> Result<Self, GLCoreError> {
 		glcore.glBindBuffer(target as u32, name)?;
 		let mut size = 0;

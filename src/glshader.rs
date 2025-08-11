@@ -362,7 +362,12 @@ impl<'a> ShaderUse<'a> {
 		Ok(())
 	}
 
-	/// Wrapper for matrices of attrib
+	/// Wrapper for matrices of attributes
+	///
+	/// # Safety
+	///
+	/// When binding an array buffer, the parameter `pointer` refers to an offset of the data from the array buffer.
+	/// When not bound to any array buffers, the parameter `pointer` is the pointer to your vertex data from the system memory.
 	pub unsafe fn vertex_attrib_matrix_pointer(&self, location: u32, cols: u32, rows: u32, base_type: ShaderInputType, normalize: bool, stride: isize, pointer: *const c_void) -> Result<(), ShaderError> {
 		match base_type {
 			ShaderInputType::Float => {
@@ -380,7 +385,12 @@ impl<'a> ShaderUse<'a> {
 		Ok(())
 	}
 
-	/// Set attrib value by pointer
+	/// Wrapper for setting attribute values by pointer
+	///
+	/// # Safety
+	///
+	/// When binding an array buffer, the parameter `pointer` refers to an offset of the data from the array buffer.
+	/// When not bound to any array buffers, the parameter `pointer` is the pointer to your vertex data from the system memory.
 	pub unsafe fn set_attrib_ptr<T: Any>(&self, name: &str, attrib_type: &ShaderInputVarType, do_normalize: bool, stride: isize, ptr_param: *const c_void) -> Result<(), ShaderError> {
 		let location = self.shader.get_attrib_location(name)?;
 		if location >= 0 {
@@ -504,7 +514,7 @@ impl<'a> ShaderUse<'a> {
 			} else {
 				name_mod.push_str(name);
 			}
-			if shader_uniforms.get(&name_mod).is_some()
+			if shader_uniforms.contains_key(&name_mod)
 				&& let Some(texture) = material.get_by_name(name) {
 				let location = self.shader.get_uniform_location(&name_mod)?;
 				if location == -1 {

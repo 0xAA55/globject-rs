@@ -650,6 +650,11 @@ pub trait GenericTexture: Debug {
 	fn bind_face<'a>(&'a self, face: CubeMapFaces) -> Result<TextureBind<'a>, TextureError>;
 
 	/// Retrieve the pixels from the texture to the specified data pointer regardless of is currently using a PBO or not
+	///
+	/// # Safety
+	///
+	/// When binding a pixel pack buffer, the pointer `data` refers to the offset of the buffer in bytes.
+	/// When not bound to any pixel pack buffers, the pointer `data` is the pointer to your image buffer in the system memory.
 	unsafe fn download_texture(&self, data: *mut c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType) -> Result<(), TextureError> {
 		let glcore = self.get_glcore();
 		let pointer = data as *mut u8;
@@ -683,6 +688,11 @@ pub trait GenericTexture: Debug {
 	}
 
 	/// Load the texture with the specified data pointer regardless of is currently using a PBO or not
+	///
+	/// # Safety
+	///
+	/// When binding a pixel unpack buffer, the pointer `data` refers to the offset of the buffer in bytes.
+	/// When not bound to any pixel unpack buffers, the pointer `data` is the pointer to your image buffer in the system memory.
 	unsafe fn upload_texture(&self, data: *const c_void, buffer_channel_type: ChannelType, buffer_component_type: ComponentType, regen_mipmap: bool) -> Result<(), TextureError> {
 		let glcore = self.get_glcore();
 		let pointer = data as *const u8;
