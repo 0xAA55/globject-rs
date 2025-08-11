@@ -132,10 +132,10 @@ mod tests {
 				1u8, 3u8, 2u8,
 			];
 			let vertex_buffer = Buffer::new(glcore.clone(), BufferTarget::ArrayBuffer, size_of_val(&vertices), BufferUsage::StaticDraw, vertices.as_ptr() as *const c_void)?;
-			let mut vertex_buffer = BufferVecStatic::<MyVertex>::new(glcore.clone(), vertex_buffer);
+			let mut vertex_buffer = BufferVecStatic::<MyVertex>::new(vertex_buffer);
 			vertex_buffer.resize(4, MyVertex::default())?;
 			let element_buffer = Buffer::new(glcore.clone(), BufferTarget::ElementArrayBuffer, size_of_val(&elements), BufferUsage::StaticDraw, elements.as_ptr() as *const c_void)?;
-			let mut element_buffer = BufferVecStatic::<u8>::new(glcore.clone(), element_buffer);
+			let mut element_buffer = BufferVecStatic::<u8>::new(element_buffer);
 			element_buffer.resize(6, 0u8)?;
 			let mesh = StaticMesh::<MyVertex, u8, UnusedType, UnusedType>::new(PrimitiveMode::Triangles, vertex_buffer, Some(element_buffer), None, None);
 			let mesh = Rc::new(MeshWithMaterial::new(mesh, Rc::new(MaterialLegacy::default())));
