@@ -475,13 +475,13 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecDynamic<T> {
 				end_index = i;
 				self.cache_modified_bitmap.set(i, false);
 			} else if is_in {
-   					if gap_length < MAXIMUM_GAP {
-						gap_length += 1;
-					} else {
-						self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index])?;
-						is_in = false;
-					}
+				if gap_length < MAXIMUM_GAP {
+					gap_length += 1;
+				} else {
+					self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index])?;
+					is_in = false;
 				}
+			}
 		}
 		if is_in {
 			self.buffer.set_slice_of_data(0, &self.cache[start_index..=end_index])?;
