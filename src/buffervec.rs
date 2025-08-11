@@ -4,7 +4,7 @@ use bitvec::vec::BitVec;
 use std::{
 	fmt::Debug,
 	marker::PhantomData,
-	mem::{size_of, size_of_val},
+	mem::{ManuallyDrop, size_of, size_of_val},
 	ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
 	rc::Rc,
 };
@@ -77,7 +77,7 @@ pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
 #[derive(Debug, Clone)]
 pub struct BufferVecStatic<T: BufferVecItem> {
 	pub glcore: Rc<GLCore>,
-	buffer: Buffer,
+	buffer: ManuallyDrop<Buffer>,
 	num_items: usize,
 	capacity: usize,
 	_item_type: PhantomData<T>,
