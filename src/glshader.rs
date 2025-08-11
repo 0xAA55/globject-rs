@@ -302,8 +302,7 @@ impl Shader {
 		let mut binary_length = 0;
 		let mut binary_format = 0;
 		self.glcore.glGetProgramiv(self.program, GL_PROGRAM_BINARY_LENGTH, &mut binary_length as *mut _)?;
-		let mut binary = Vec::<u8>::new();
-		binary.resize(binary_length as usize, 0);
+		let mut binary = vec![0; binary_length as usize];
 		self.glcore.glGetProgramBinary(self.program, binary_length, null_mut(), &mut binary_format as *mut _, binary.as_mut_ptr() as *mut _)?;
 		Ok(ShaderBinary::new(binary_format, self.shader_type, binary))
 	}
@@ -383,7 +382,7 @@ impl<'a> ShaderUse<'a> {
 
 	/// Set attrib value by pointer
 	pub unsafe fn set_attrib_ptr<T: Any>(&self, name: &str, attrib_type: &ShaderInputVarType, do_normalize: bool, stride: isize, ptr_param: *const c_void) -> Result<(), ShaderError> {
-		let location = self.shader.get_attrib_location(&name)?;
+		let location = self.shader.get_attrib_location(name)?;
 		if location >= 0 {
 			let location = location as u32;
 			let (p_size, p_rows) = attrib_type.get_size_and_rows();
@@ -400,7 +399,7 @@ impl<'a> ShaderUse<'a> {
 
 	/// Set attrib value
 	pub fn set_attrib(&self, name: &str, v: &dyn Any) -> Result<(), ShaderError> {
-		let location = self.shader.get_attrib_location(&name)?;
+		let location = self.shader.get_attrib_location(name)?;
 		if location >= 0 {
 			let location = location as u32;
 			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glVertexAttribPointer (location, 1, ShaderInputType::Float as u32, 0, 0, (v as *const f32) as *const _)?;} else
@@ -446,7 +445,7 @@ impl<'a> ShaderUse<'a> {
 
 	/// Set uniform value
 	pub fn set_uniform(&self, name: &str, v: &dyn Any) -> Result<(), ShaderError> {
-		let location = self.shader.get_uniform_location(&name)?;
+		let location = self.shader.get_uniform_location(name)?;
 		if location >= 0 {
 			if let Some(v) = v.downcast_ref::<f32>()		{self.shader.glcore.glUniform1fv(location, 1, v as *const _)?;} else
 			if let Some(v) = v.downcast_ref::<Vec2>()		{self.shader.glcore.glUniform2fv(location, 1, v.as_ptr())?;} else
@@ -503,28 +502,27 @@ impl<'a> ShaderUse<'a> {
 			if camel_case {
 				name_mod.push_str(&to_camel_case(name, prefix.is_some()));
 			} else {
-				name_mod.push_str(&name);
+				name_mod.push_str(name);
 			}
-			if let Some(_) = shader_uniforms.get(&name_mod) {
-				if let Some(texture) = material.get_by_name(&name) {
-					let location = self.shader.get_uniform_location(&name_mod)?;
-					if location == -1 {
-						continue;
+			if shader_uniforms.get(&name_mod).is_some()
+				&& let Some(texture) = material.get_by_name(name) {
+				let location = self.shader.get_uniform_location(&name_mod)?;
+				if location == -1 {
+					continue;
+				}
+				match texture {
+					MaterialComponent::Texture(texture) => {
+						texture.set_active_unit(active_texture)?;
+						let bind = texture.bind()?;
+						glcore.glUniform1i(location, active_texture as i32)?;
+						bind.unbind();
+						active_texture += 1;
 					}
-					match texture {
-						MaterialComponent::Texture(texture) => {
-							texture.set_active_unit(active_texture)?;
-							let bind = texture.bind()?;
-							glcore.glUniform1i(location, active_texture as i32)?;
-							bind.unbind();
-							active_texture += 1;
-						}
-						MaterialComponent::Color(color) => {
-							glcore.glUniform4f(location, color.x, color.y, color.z, color.w)?;
-						}
-						MaterialComponent::Luminance(lum) => {
-							glcore.glUniform1f(location, *lum)?;
-						}
+					MaterialComponent::Color(color) => {
+						glcore.glUniform4f(location, color.x, color.y, color.z, color.w)?;
+					}
+					MaterialComponent::Luminance(lum) => {
+						glcore.glUniform1f(location, *lum)?;
 					}
 				}
 			}

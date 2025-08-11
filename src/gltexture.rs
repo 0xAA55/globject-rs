@@ -548,7 +548,7 @@ where
 
 	/// Create from a file
 	pub fn from_file(glcore: Rc<GLCore>, path: &Path) -> Result<Self, TextureError> {
-		let ext = path.extension().map_or_else(|| String::new(), |ext| OsStr::to_str(ext).unwrap().to_lowercase());
+		let ext = path.extension().map_or_else(String::new, |ext| OsStr::to_str(ext).unwrap().to_lowercase());
 		match &ext[..] {
 			"jpg" | "jpeg" => {
 				let image_data = std::fs::read(path)?;
@@ -906,13 +906,11 @@ where
 		let mut ret = Self::new_unallocates(glcore, dim, format, width, height, depth, wrapping_s, wrapping_t, wrapping_r, has_mipmap, mag_filter, min_filter)?;
 		if buffering {
 			ret.create_pixel_buffer(buffer_channel_type, buffer_component_type, initial_data)?;
+		} else if let Some(data_pointer) = initial_data {
+			unsafe {ret.upload_texture(data_pointer, buffer_channel_type, buffer_component_type, has_mipmap)?};
 		} else {
-			if let Some(data_pointer) = initial_data {
-				unsafe {ret.upload_texture(data_pointer, buffer_channel_type, buffer_component_type, has_mipmap)?};
-			} else {
-				let empty_data = vec![0u8; ret.bytes_of_texture];
-				unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_channel_type, buffer_component_type, has_mipmap)?};
-			}
+			let empty_data = vec![0u8; ret.bytes_of_texture];
+			unsafe {ret.upload_texture(empty_data.as_ptr() as *const c_void, buffer_channel_type, buffer_component_type, has_mipmap)?};
 		}
 		Ok(ret)
 	}
@@ -1033,7 +1031,7 @@ where
 			mag_filter: SamplerMagFilter,
 			min_filter: SamplerFilter,
 		) -> Result<Self, TextureError> {
-		let ext = path.extension().map_or_else(|| String::new(), |ext| OsStr::to_str(ext).unwrap().to_lowercase());
+		let ext = path.extension().map_or_else(String::new, |ext| OsStr::to_str(ext).unwrap().to_lowercase());
 		match &ext[..] {
 			"jpg" | "jpeg" => {
 				let image_data = std::fs::read(path)?;

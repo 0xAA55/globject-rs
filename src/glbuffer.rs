@@ -182,7 +182,7 @@ impl Buffer {
 
 	/// Bind to a specific target. WILL NOT change the default target of the buffer. Create a `BufferBind` to use the RAII system to manage the binding state.
 	pub fn bind_to<'a>(&'a self, target: BufferTarget) -> Result<BufferBind<'a>, GLCoreError> {
-		BufferBind::new(&*self, target)
+		BufferBind::new(self, target)
 	}
 }
 

@@ -387,7 +387,7 @@ impl<'a, V: VertexType, I: VertexType> PipelineBind<'a, V, I> {
 			assert_eq!(command_buffer.get_target(), BufferTarget::DrawIndirectBuffer);
 			let c_bind = command_buffer.bind()?;
 			let num_commands = mesh.get_command_count();
-			if let Some(_) = element_buffer {
+			if element_buffer.is_some() {
 				glcore.glMultiDrawElementsIndirect(mesh.get_primitive() as u32, mesh.get_element_type() as u32, null(), num_commands as i32, size_of::<DrawElementsCommand>() as i32)?;
 			} else {
 				glcore.glMultiDrawArraysIndirect(mesh.get_primitive() as u32, null(), num_commands as i32, size_of::<DrawArrayCommand>() as i32)?;
@@ -395,14 +395,14 @@ impl<'a, V: VertexType, I: VertexType> PipelineBind<'a, V, I> {
 			c_bind.unbind();
 		} else {
 			let num_vertices = mesh.get_vertex_count();
-			if let Some(_) = mesh.get_instance_buffer() {
+			if mesh.get_instance_buffer().is_some() {
 				let num_instances = mesh.get_instance_count();
-				if let Some(_) = element_buffer {
+				if element_buffer.is_some() {
 					glcore.glDrawElementsInstanced(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null(), num_instances as i32)?;
 				} else {
 					glcore.glDrawArraysInstanced(mesh.get_primitive() as u32, 0, num_vertices as i32, num_instances as i32)?;
 				}
-			} else if let Some(_) = element_buffer {
+			} else if element_buffer.is_some() {
 				glcore.glDrawElements(mesh.get_primitive() as u32, mesh.get_element_count() as i32, mesh.get_element_type() as u32, null())?;
 			} else {
 				glcore.glDrawArrays(mesh.get_primitive() as u32, 0, num_vertices as i32)?;
