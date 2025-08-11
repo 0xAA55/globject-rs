@@ -1,4 +1,6 @@
 
+#![allow(clippy::suspicious_else_formatting)]
+
 use crate::prelude::*;
 use std::{
 	any::Any,

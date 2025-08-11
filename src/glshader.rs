@@ -1,5 +1,8 @@
 
 #![allow(non_upper_case_globals)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::suspicious_else_formatting)]
 
 use crate::prelude::*;
 use std::{

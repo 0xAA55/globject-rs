@@ -1,5 +1,6 @@
 
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::suspicious_else_formatting)]
 
 use crate::prelude::*;
 use std::{
