@@ -21,6 +21,12 @@ pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
 	/// Get the underlying `Buffer` as mut
 	fn get_buffer_mut(&mut self) -> &mut Buffer;
 
+	/// Get the default binding target of the buffer
+	fn get_target(&self) -> BufferTarget;
+
+	/// Set the binding target of the buffer
+	fn set_target(&mut self, target: BufferTarget);
+
 	/// Get the size of the buffer
 	fn len(&self) -> usize;
 
