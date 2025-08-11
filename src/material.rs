@@ -147,7 +147,7 @@ impl Material for MaterialLegacy {
 	}
 
 	fn get_by_name(&self, name: &str) -> Option<&MaterialComponent> {
-		match self.others.get(&name.to_owned()) {
+		match self.others.get(name) {
 			Some(data) => Some(data),
 			None => {
 				match name {
@@ -208,7 +208,7 @@ impl Material for MaterialPbr {
 	}
 
 	fn get_by_name(&self, name: &str) -> Option<&MaterialComponent> {
-		match self.others.get(&name.to_owned()) {
+		match self.others.get(name) {
 			Some(data) => Some(data),
 			None => {
 				match name {
