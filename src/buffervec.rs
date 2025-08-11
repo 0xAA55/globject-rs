@@ -576,7 +576,7 @@ impl<T: BufferVecItem> Index<Range<usize>> for BufferVecDynamic<T> {
 impl<T: BufferVecItem> IndexMut<Range<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: Range<usize>) -> &mut [T] {
 		self.cache_modified = true;
-		for i in r.start..r.end {
+		for i in r.clone() {
 			self.cache_modified_bitmap.set(i, true);
 		}
 		&mut self.cache[r]
@@ -593,7 +593,7 @@ impl<T: BufferVecItem> Index<RangeFrom<usize>> for BufferVecDynamic<T> {
 impl<T: BufferVecItem> IndexMut<RangeFrom<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: RangeFrom<usize>) -> &mut [T] {
 		self.cache_modified = true;
-		for i in r.start..self.num_items {
+		for i in r.clone() {
 			self.cache_modified_bitmap.set(i, true);
 		}
 		&mut self.cache[r]
@@ -619,18 +619,18 @@ impl<T: BufferVecItem> IndexMut<RangeTo<usize>> for BufferVecDynamic<T> {
 
 impl<T: BufferVecItem> Index<RangeFull> for BufferVecDynamic<T> {
 	type Output = [T];
-	fn index(&self, r: RangeFull) -> &[T] {
-		&self.cache[r]
+	fn index(&self, _: RangeFull) -> &[T] {
+		&self.cache[..]
 	}
 }
 
 impl<T: BufferVecItem> IndexMut<RangeFull> for BufferVecDynamic<T> {
-	fn index_mut(&mut self, r: RangeFull) -> &mut [T] {
+	fn index_mut(&mut self, _: RangeFull) -> &mut [T] {
 		self.cache_modified = true;
 		for i in 0..self.num_items {
 			self.cache_modified_bitmap.set(i, true);
 		}
-		&mut self.cache[r]
+		&mut self.cache[..]
 	}
 }
 
@@ -644,7 +644,7 @@ impl<T: BufferVecItem> Index<RangeInclusive<usize>> for BufferVecDynamic<T> {
 impl<T: BufferVecItem> IndexMut<RangeInclusive<usize>> for BufferVecDynamic<T> {
 	fn index_mut(&mut self, r: RangeInclusive<usize>) -> &mut [T] {
 		self.cache_modified = true;
-		for i in *r.start()..=*r.end() {
+		for i in r.clone() {
 			self.cache_modified_bitmap.set(i, true);
 		}
 		&mut self.cache[r]
