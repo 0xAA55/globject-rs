@@ -2,8 +2,8 @@
 use crate::prelude::*;
 use bitvec::vec::BitVec;
 use std::{
+	cell::UnsafeCell,
 	fmt::Debug,
-	marker::PhantomData,
 	mem::{ManuallyDrop, size_of, size_of_val},
 	ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeTo, RangeFull, RangeInclusive, RangeToInclusive},
 	rc::Rc,
@@ -74,13 +74,27 @@ pub trait BufferVec<T: BufferVecItem>: Debug + Clone + From<Buffer> {
 }
 
 /// The `BufferVecStatic` struct, although it doesn't supports
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BufferVecStatic<T: BufferVecItem> {
 	pub glcore: Rc<GLCore>,
 	buffer: ManuallyDrop<Buffer>,
 	num_items: usize,
 	capacity: usize,
-	_item_type: PhantomData<T>,
+	cache: UnsafeCell<BufferVecStaticCache<T>>,
+}
+
+impl<T: BufferVecItem> Clone for BufferVecStatic<T> {
+	fn clone(&self) -> Self {
+		let buffer = self.buffer.clone();
+		let cache = UnsafeCell::new(unsafe {&mut *self.cache.get()}.clone_cache(&buffer).unwrap());
+		Self {
+			glcore: self.glcore.clone(),
+			buffer,
+			num_items: self.num_items,
+			capacity: self.capacity,
+			cache,
+		}
+	}
 }
 
 /// A vectorized buffer that allows you to modify its content via providing your struct.
@@ -91,14 +105,15 @@ impl<T: BufferVecItem> BufferVecStatic<T> {
 	}
 
 	/// Convert `Buffer` to an `BufferVecStatic`
-	pub fn new(glcore: Rc<GLCore>, buffer: Buffer) -> Self {
+	pub fn new(buffer: Buffer) -> Self {
+		let glcore = buffer.glcore.clone();
 		let capacity = buffer.size() / size_of::<T>();
 		Self {
 			glcore,
-			buffer,
+			buffer: ManuallyDrop::new(buffer),
 			num_items: 0,
 			capacity,
-			_item_type: PhantomData,
+			cache: UnsafeCell::new(BufferVecStaticCache::None),
 		}
 	}
 }
@@ -179,14 +194,127 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecStatic<T> {
 		Ok(())
 	}
 
+	fn flush(&mut self) -> Result<(), GLCoreError> {
+		*self.cache.get_mut() = BufferVecStaticCache::None;
+		Ok(())
 	fn set_target(&mut self, target: BufferTarget) {
 		self.buffer.set_target(target)
 	}
 }
 
-impl<T: BufferVecItem> From<BufferVecStatic<T>> for Buffer {
-	fn from(val: BufferVecStatic<T>) -> Self {
-		val.buffer
+/// The `&item` for `BufferVecStatic`
+#[derive(Debug)]
+pub struct BufferVecItemRef<T>
+where
+	T: BufferVecItem {
+	item: T,
+	index: usize,
+	buffer: Box<BufferVecStatic<T>>,
+}
+
+/// The `&mut item` for `BufferVecStatic`
+#[derive(Debug)]
+pub struct BufferVecItemRefMut<T>
+where
+	T: BufferVecItem {
+	item: T,
+	index: usize,
+	buffer: Box<BufferVecStatic<T>>,
+}
+
+/// The `&slice[]` for `BufferVecStatic`
+#[derive(Debug)]
+pub struct BufferVecSliceRef<T>
+where
+	T: BufferVecItem {
+	slice: Vec<T>,
+	start_index: usize,
+	buffer: Box<BufferVecStatic<T>>,
+}
+
+/// The `&mut slice[]` for `BufferVecStatic`
+#[derive(Debug)]
+pub struct BufferVecSliceRefMut<T>
+where
+	T: BufferVecItem {
+	slice: Vec<T>,
+	start_index: usize,
+	buffer: Box<BufferVecStatic<T>>,
+}
+
+/// The caching system of `BufferVecStatic`
+#[derive(Debug)]
+enum BufferVecStaticCache<T: BufferVecItem> {
+	None,
+	Item(BufferVecItemRef<T>),
+	ItemMut(BufferVecItemRefMut<T>),
+	Slice(BufferVecSliceRef<T>),
+	SliceMut(BufferVecSliceRefMut<T>),
+}
+
+impl<T: BufferVecItem> BufferVecStaticCache<T> {
+	/// Get as reference to an item
+	fn get_item(&self) -> &T {
+		if let Self::Item(item) = self {
+			item.as_ref()
+		} else {
+			panic!("The current cache isn't an item")
+		}
+	}
+
+	/// Get as reference to a mutable item
+	fn get_item_mut(&mut self) -> &mut T {
+		if let Self::ItemMut(item_mut) = self {
+			item_mut.as_mut()
+		} else {
+			panic!("The current cache isn't an item")
+		}
+	}
+
+	/// Get as reference to a slice
+	fn get_slice(&self) -> &[T] {
+		if let Self::Slice(slice) = self {
+			slice.as_ref()
+		} else {
+			panic!("The current cache isn't an item")
+		}
+	}
+
+	/// Get as reference to a mutable slice
+	fn get_slice_mut(&mut self) -> &mut [T] {
+		if let Self::SliceMut(slice_mut) = self {
+			slice_mut.as_mut()
+		} else {
+			panic!("The current cache isn't an item")
+		}
+	}
+
+	/// Clone this cache
+	fn clone_cache(&self, new_buffer: &Buffer) -> Result<Self, GLCoreError> {
+		let ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(new_buffer.glcore.clone(), new_buffer.get_name(), new_buffer.get_target())}?));
+		Ok(match self {
+			Self::None => Self::None,
+			Self::Item(data) => Self::Item(BufferVecItemRef{
+				item: data.item,
+				index: data.index,
+				buffer: ref_buffer,
+			}),
+			Self::ItemMut(data) => Self::ItemMut(BufferVecItemRefMut{
+				item: data.item,
+				index: data.index,
+				buffer: ref_buffer,
+			}),
+			Self::Slice(data) => Self::Slice(BufferVecSliceRef{
+				slice: data.slice.clone(),
+				start_index: data.start_index,
+				buffer: ref_buffer,
+			}),
+			Self::SliceMut(data) => Self::SliceMut(BufferVecSliceRefMut{
+				slice: data.slice.clone(),
+				start_index: data.start_index,
+				buffer: ref_buffer,
+			}),
+		})
 	}
 }
 
@@ -195,10 +323,10 @@ impl<T: BufferVecItem> From<Buffer> for BufferVecStatic<T> {
 		let capacity = val.size() / size_of::<T>();
 		BufferVecStatic {
 			glcore: val.glcore.clone(),
-			buffer: val,
+			buffer: ManuallyDrop::new(val),
 			num_items: 0,
 			capacity,
-			_item_type: PhantomData,
+			cache: UnsafeCell::new(BufferVecStaticCache::None),
 		}
 	}
 }
@@ -222,7 +350,8 @@ impl<T: BufferVecItem> BufferVecDynamic<T> {
 	}
 
 	/// Convert an `BufferVecStatic` to the `BufferVecDynamic`
-	pub fn new(buffer: BufferVecStatic<T>) -> Result<Self, GLCoreError> {
+	pub fn new(mut buffer: BufferVecStatic<T>) -> Result<Self, GLCoreError> {
+		buffer.flush()?;
 		let capacity = buffer.capacity();
 		let mut cache_modified_bitmap = BitVec::new();
 		let cache = buffer.get_slice_of_data(0, capacity)?;
@@ -348,8 +477,219 @@ impl<T: BufferVecItem> BufferVec<T> for BufferVecDynamic<T> {
 	}
 }
 
+impl<T> BufferVecItemRef<T>
+where
+	T: BufferVecItem {
+	fn new(buffer: &BufferVecStatic<T>, index: usize) -> Result<Self, GLCoreError> {
+		let item = buffer.get(index)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			item,
+			index,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn as_ref(&self) -> &T {
+		&self.item
+	}
+}
+
+impl<T> BufferVecItemRefMut<T>
+where
+	T: BufferVecItem {
+	fn new(buffer: &mut BufferVecStatic<T>, index: usize) -> Result<Self, GLCoreError> {
+		let item = buffer.get(index)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			item,
+			index,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn as_mut(&mut self) -> &mut T {
+		&mut self.item
+	}
+}
+
+impl<T> BufferVecSliceRef<T>
+where
+	T: BufferVecItem {
+	fn as_ref(&self) -> &[T] {
+		self.slice.as_ref()
+	}
+
+	fn new_range(buffer: &BufferVecStatic<T>, range: Range<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(range.start, range.end - range.start)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: range.start,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_from(buffer: &BufferVecStatic<T>, range: RangeFrom<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(range.start, buffer.len() - range.start)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: range.start,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_to(buffer: &BufferVecStatic<T>, range: RangeTo<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, range.end)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: 0,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_full(buffer: &BufferVecStatic<T>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, buffer.len())?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: 0,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_inclusive(buffer: &BufferVecStatic<T>, range: RangeInclusive<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(*range.start(), *range.end() + 1 - *range.start())?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: *range.start(),
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_to_inclusive(buffer: &BufferVecStatic<T>, range: RangeToInclusive<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, range.end + 1)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: 0,
+			buffer: ref_buffer,
+		})
+	}
+}
+
+impl<T> BufferVecSliceRefMut<T>
+where
+	T: BufferVecItem {
+	fn as_mut(&mut self) -> &mut [T] {
+		self.slice.as_mut()
+	}
+
+	fn new_range(buffer: &mut BufferVecStatic<T>, range: Range<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(range.start, range.end - range.start)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: range.start,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_from(buffer: &mut BufferVecStatic<T>, range: RangeFrom<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(range.start, buffer.len() - range.start)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: range.start,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_to(buffer: &mut BufferVecStatic<T>, range: RangeTo<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, range.end)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: 0,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_full(buffer: &mut BufferVecStatic<T>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, buffer.len())?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: 0,
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_inclusive(buffer: &mut BufferVecStatic<T>, range: RangeInclusive<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(*range.start(), *range.end() + 1 - *range.start())?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: *range.start(),
+			buffer: ref_buffer,
+		})
+	}
+
+	fn new_range_to_inclusive(buffer: &mut BufferVecStatic<T>, range: RangeToInclusive<usize>) -> Result<Self, GLCoreError> {
+		let slice = buffer.get_slice_of_data(0, range.end + 1)?;
+		let mut ref_buffer = Box::new(BufferVecStatic::new(unsafe {Buffer::from_raw(buffer.glcore.clone(), buffer.get_name(), buffer.get_target())}?));
+		ref_buffer.resize(buffer.len(), T::default())?;
+		Ok(Self {
+			slice,
+			start_index: 0,
+			buffer: ref_buffer,
+		})
+	}
+}
+
+impl<T> Drop for BufferVecItemRefMut<T>
+where
+	T: BufferVecItem {
+	fn drop(&mut self) {
+		self.buffer.set(self.index, &self.item).unwrap();
+		unsafe {
+			let buffer = ManuallyDrop::take(&mut self.buffer.buffer);
+			buffer.to_raw();
+		}
+	}
+}
+
+impl<T> Drop for BufferVecSliceRefMut<T>
+where
+	T: BufferVecItem {
+	fn drop(&mut self) {
+		self.buffer.set_slice_of_data(self.start_index, self.slice.as_ref()).unwrap();
+		unsafe {
+			let buffer = ManuallyDrop::take(&mut self.buffer.buffer);
+			buffer.to_raw();
+		}
+	}
+}
+
 impl<T: BufferVecItem> From<BufferVecStatic<T>> for BufferVecDynamic<T> {
-	fn from(val: BufferVecStatic<T>) -> Self {
+	fn from(mut val: BufferVecStatic<T>) -> Self {
+		val.flush().unwrap();
 		BufferVecDynamic::new(val).unwrap()
 	}
 }
@@ -362,8 +702,8 @@ impl<T: BufferVecItem> From<BufferVecDynamic<T>> for BufferVecStatic<T> {
 }
 
 impl<T: BufferVecItem> From<BufferVecDynamic<T>> for Buffer {
-	fn from(val: BufferVecDynamic<T>) -> Self {
-		val.buffer.into()
+	fn from(mut val: BufferVecDynamic<T>) -> Self {
+		unsafe {ManuallyDrop::take(&mut val.buffer.buffer)}
 	}
 }
 
@@ -371,6 +711,125 @@ impl<T: BufferVecItem> From<Buffer> for BufferVecDynamic<T> {
 	fn from(val: Buffer) -> Self {
 		let ab: BufferVecStatic<T> = val.into();
 		ab.into()
+	}
+}
+
+impl<T: BufferVecItem> Index<usize> for BufferVecStatic<T> {
+	type Output = T;
+	fn index(&self, i: usize) -> &T {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::Item(BufferVecItemRef::new(self, i).unwrap());
+		cache.get_item()
+	}
+}
+
+impl<T: BufferVecItem> IndexMut<usize> for BufferVecStatic<T> {
+	fn index_mut(&mut self, i: usize) -> &mut T {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::ItemMut(BufferVecItemRefMut::new(self, i).unwrap());
+		cache.get_item_mut()
+	}
+}
+
+impl<T: BufferVecItem> Index<Range<usize>> for BufferVecStatic<T> {
+	type Output = [T];
+	fn index(&self, r: Range<usize>) -> &[T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::Slice(BufferVecSliceRef::new_range(self, r).unwrap());
+		cache.get_slice()
+	}
+}
+
+impl<T: BufferVecItem> IndexMut<Range<usize>> for BufferVecStatic<T> {
+	fn index_mut(&mut self, r: Range<usize>) -> &mut [T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::SliceMut(BufferVecSliceRefMut::new_range(self, r).unwrap());
+		cache.get_slice_mut()
+	}
+}
+
+impl<T: BufferVecItem> Index<RangeFrom<usize>> for BufferVecStatic<T> {
+	type Output = [T];
+	fn index(&self, r: RangeFrom<usize>) -> &[T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::Slice(BufferVecSliceRef::new_range_from(self, r).unwrap());
+		cache.get_slice()
+	}
+}
+
+impl<T: BufferVecItem> IndexMut<RangeFrom<usize>> for BufferVecStatic<T> {
+	fn index_mut(&mut self, r: RangeFrom<usize>) -> &mut [T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::SliceMut(BufferVecSliceRefMut::new_range_from(self, r).unwrap());
+		cache.get_slice_mut()
+	}
+}
+
+impl<T: BufferVecItem> Index<RangeTo<usize>> for BufferVecStatic<T> {
+	type Output = [T];
+	fn index(&self, r: RangeTo<usize>) -> &[T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::Slice(BufferVecSliceRef::new_range_to(self, r).unwrap());
+		cache.get_slice()
+	}
+}
+
+impl<T: BufferVecItem> IndexMut<RangeTo<usize>> for BufferVecStatic<T> {
+	fn index_mut(&mut self, r: RangeTo<usize>) -> &mut [T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::SliceMut(BufferVecSliceRefMut::new_range_to(self, r).unwrap());
+		cache.get_slice_mut()
+	}
+}
+
+impl<T: BufferVecItem> Index<RangeFull> for BufferVecStatic<T> {
+	type Output = [T];
+	fn index(&self, _: RangeFull) -> &[T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::Slice(BufferVecSliceRef::new_range_full(self).unwrap());
+		cache.get_slice()
+	}
+}
+
+impl<T: BufferVecItem> IndexMut<RangeFull> for BufferVecStatic<T> {
+	fn index_mut(&mut self, _: RangeFull) -> &mut [T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::SliceMut(BufferVecSliceRefMut::new_range_full(self).unwrap());
+		cache.get_slice_mut()
+	}
+}
+
+impl<T: BufferVecItem> Index<RangeInclusive<usize>> for BufferVecStatic<T> {
+	type Output = [T];
+	fn index(&self, r: RangeInclusive<usize>) -> &[T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::Slice(BufferVecSliceRef::new_range_inclusive(self, r).unwrap());
+		cache.get_slice()
+	}
+}
+
+impl<T: BufferVecItem> IndexMut<RangeInclusive<usize>> for BufferVecStatic<T> {
+	fn index_mut(&mut self, r: RangeInclusive<usize>) -> &mut [T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::SliceMut(BufferVecSliceRefMut::new_range_inclusive(self, r).unwrap());
+		cache.get_slice_mut()
+	}
+}
+
+impl<T: BufferVecItem> Index<RangeToInclusive<usize>> for BufferVecStatic<T> {
+	type Output = [T];
+	fn index(&self, r: RangeToInclusive<usize>) -> &[T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::Slice(BufferVecSliceRef::new_range_to_inclusive(self, r).unwrap());
+		cache.get_slice()
+	}
+}
+
+impl<T: BufferVecItem> IndexMut<RangeToInclusive<usize>> for BufferVecStatic<T> {
+	fn index_mut(&mut self, r: RangeToInclusive<usize>) -> &mut [T] {
+		let cache = unsafe{&mut *self.cache.get()};
+		*cache = BufferVecStaticCache::SliceMut(BufferVecSliceRefMut::new_range_to_inclusive(self, r).unwrap());
+		cache.get_slice_mut()
 	}
 }
 
